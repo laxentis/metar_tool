@@ -1,5 +1,40 @@
 use std::fmt;
 
+/// Runway designation suffix (Left, Center, Right)
+#[allow(dead_code)]
+enum RunwaySuffix {
+    L,
+    C,
+    R,
+}
+
+impl fmt::Display for RunwaySuffix {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            RunwaySuffix::L => write!(f, "L"),
+            RunwaySuffix::C => write!(f, "C"),
+            RunwaySuffix::R => write!(f, "R"),
+        }
+    }
+}
+
+/// Runway identification with optional suffix
+struct Runway {
+    identifier: u32,
+    suffix: Option<RunwaySuffix>,
+}
+
+impl fmt::Display for Runway {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(suffix) = &self.suffix {
+            write!(f, "{:02}{}", self.identifier, suffix)
+        } else {
+            write!(f, "{:02}", self.identifier)
+        }
+    }
+}
+
+#[allow(dead_code)]
 enum MessageType {
     Metar,
     MetarCor,
@@ -10,14 +45,24 @@ enum MessageType {
 impl fmt::Display for MessageType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            MessageType::Metar => {write!(f, "METAR")}
-            MessageType::MetarCor => {write!(f, "METAR COR")}
-            MessageType::Speci => {write!(f, "SPECI")}
-            MessageType::SpeciCor => {write!(f, "SPECI COR")}
+            MessageType::Metar => {
+                write!(f, "METAR")
+            }
+            MessageType::MetarCor => {
+                write!(f, "METAR COR")
+            }
+            MessageType::Speci => {
+                write!(f, "SPECI")
+            }
+            MessageType::SpeciCor => {
+                write!(f, "SPECI COR")
+            }
         }
     }
 }
 
+/// Wind speed units (KT or MPS)
+#[allow(dead_code)]
 enum SpeedUnits {
     Knots,
     MetersPerSecond,
@@ -26,12 +71,18 @@ enum SpeedUnits {
 impl fmt::Display for SpeedUnits {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            SpeedUnits::Knots => {write!(f, "KT")}
-            SpeedUnits::MetersPerSecond => {write!(f, "MPS")}
+            SpeedUnits::Knots => {
+                write!(f, "KT")
+            }
+            SpeedUnits::MetersPerSecond => {
+                write!(f, "MPS")
+            }
         }
     }
 }
 
+/// Cardinal direction
+#[allow(dead_code)]
 enum Direction {
     N,
     E,
@@ -43,6 +94,7 @@ enum Direction {
     SW,
 }
 
+/// Wind varying between two directions
 struct WindVariance(i32, i32);
 
 impl fmt::Display for WindVariance {
@@ -51,6 +103,7 @@ impl fmt::Display for WindVariance {
     }
 }
 
+/// METAR wind data
 struct WindData {
     direction: Option<i32>,
     speed: i32,
@@ -79,23 +132,41 @@ impl fmt::Display for WindData {
     }
 }
 
-struct DirectionalVisibility (u32, Direction);
+/// Visibility in one of 8 cardinal directions
+struct DirectionalVisibility(u32, Direction);
 
 impl fmt::Display for DirectionalVisibility {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.1 {
-            Direction::N => {write!(f, "{:04}N", self.0)},
-            Direction::E => {write!(f, "{:04}E", self.0)},
-            Direction::S => {write!(f, "{:04}S", self.0)},
-            Direction::W => {write!(f, "{:04}W", self.0)},
-            Direction::NE => {write!(f, "{:04}NE", self.0)},
-            Direction::NW => {write!(f, "{:04}NW", self.0)},
-            Direction::SE => {write!(f, "{:04}SE", self.0)},
-            Direction::SW => {write!(f, "{:04}SW", self.0)},
+            Direction::N => {
+                write!(f, "{:04}N", self.0)
+            }
+            Direction::E => {
+                write!(f, "{:04}E", self.0)
+            }
+            Direction::S => {
+                write!(f, "{:04}S", self.0)
+            }
+            Direction::W => {
+                write!(f, "{:04}W", self.0)
+            }
+            Direction::NE => {
+                write!(f, "{:04}NE", self.0)
+            }
+            Direction::NW => {
+                write!(f, "{:04}NW", self.0)
+            }
+            Direction::SE => {
+                write!(f, "{:04}SE", self.0)
+            }
+            Direction::SW => {
+                write!(f, "{:04}SW", self.0)
+            }
         }
     }
 }
 
+/// Raw visibility group
 struct Visibility {
     visibility: u32,
     directional: Option<DirectionalVisibility>,
@@ -111,6 +182,7 @@ impl fmt::Display for Visibility {
     }
 }
 
+/// A METAR or SPECI observation message
 struct ObservationMessage {
     message_type: MessageType,
     location: String,
@@ -124,48 +196,103 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::SpeedUnits::{Knots, MetersPerSecond};
     use super::*;
+    use crate::RunwaySuffix::L;
+    use crate::SpeedUnits::{Knots, MetersPerSecond};
 
     #[test]
-    fn simple_wind(){
-        let speed = WindData { direction: Some(20), speed: 10, gust_speed: None, speed_units: Knots, variance: None };
+    fn simple_runway() {
+        let rwy = Runway {
+            identifier: 08,
+            suffix: None,
+        };
+        assert_eq!(rwy.to_string(), "08");
+    }
+
+    #[test]
+    fn suffixed_runway() {
+        let rwy = Runway {
+            identifier: 08,
+            suffix: Some(L),
+        };
+        assert_eq!(rwy.to_string(), "08L");
+    }
+
+    #[test]
+    fn simple_wind() {
+        let speed = WindData {
+            direction: Some(20),
+            speed: 10,
+            gust_speed: None,
+            speed_units: Knots,
+            variance: None,
+        };
         assert_eq!(speed.to_string(), "02010KT");
     }
 
     #[test]
-    fn mps_wind(){
-        let speed = WindData { direction: Some(20), speed: 10, gust_speed: None, speed_units: MetersPerSecond, variance: None };
+    fn mps_wind() {
+        let speed = WindData {
+            direction: Some(20),
+            speed: 10,
+            gust_speed: None,
+            speed_units: MetersPerSecond,
+            variance: None,
+        };
         assert_eq!(speed.to_string(), "02010MPS");
     }
 
     #[test]
-    fn wind_variable(){
-        let wind = WindData { direction: None, speed: 2, gust_speed: None, speed_units: Knots, variance: None };
+    fn wind_variable() {
+        let wind = WindData {
+            direction: None,
+            speed: 2,
+            gust_speed: None,
+            speed_units: Knots,
+            variance: None,
+        };
         assert_eq!(wind.to_string(), "VRB02KT");
     }
 
     #[test]
-    fn wind_with_gusts(){
-        let wind = WindData { direction: Some(320), speed: 10, gust_speed: Some(20), speed_units: Knots, variance: None };
+    fn wind_with_gusts() {
+        let wind = WindData {
+            direction: Some(320),
+            speed: 10,
+            gust_speed: Some(20),
+            speed_units: Knots,
+            variance: None,
+        };
         assert_eq!(wind.to_string(), "32010G20KT");
     }
 
     #[test]
-    fn wind_varying_between(){
-        let wind = WindData { direction: Some(320), speed: 10, gust_speed: None, speed_units: Knots, variance: Some(WindVariance(200, 340)) };
+    fn wind_varying_between() {
+        let wind = WindData {
+            direction: Some(320),
+            speed: 10,
+            gust_speed: None,
+            speed_units: Knots,
+            variance: Some(WindVariance(200, 340)),
+        };
         assert_eq!(wind.to_string(), "32010KT 200V340");
     }
 
     #[test]
     fn simple_visibility() {
-        let vis = Visibility { visibility: 5000, directional: None };
+        let vis = Visibility {
+            visibility: 5000,
+            directional: None,
+        };
         assert_eq!(vis.to_string(), "5000");
     }
 
     #[test]
-    fn visibility_with_directional(){
-        let vis = Visibility { visibility: 1500, directional: Some(DirectionalVisibility(2000, Direction::E)) };
+    fn visibility_with_directional() {
+        let vis = Visibility {
+            visibility: 1500,
+            directional: Some(DirectionalVisibility(2000, Direction::E)),
+        };
         assert_eq!(vis.to_string(), "1500 2000E");
     }
 }
