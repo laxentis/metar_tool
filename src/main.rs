@@ -341,12 +341,103 @@ impl fmt::Display for Phenomenon {
     }
 }
 
+enum CloudCoverage {
+    FEW,
+    SCT,
+    BKN,
+    OVC,
+}
+
+impl fmt::Display for CloudCoverage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CloudCoverage::FEW => write!(f, "FEW"),
+            CloudCoverage::SCT => write!(f, "SCT"),
+            CloudCoverage::BKN => write!(f, "BKN"),
+            CloudCoverage::OVC => write!(f, "OVC"),
+        }
+    }
+}
+
+enum CloudType {
+    CB,
+    TCU
+}
+
+impl fmt::Display for CloudType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CloudType::CB => write!(f, "CB"),
+            CloudType::TCU => write!(f, "TCU")
+        }
+    }
+}
+
+struct CloudLayer {
+    coverage: CloudCoverage,
+    height: u32,
+    cloud_type: Option<CloudType>
+}
+
+impl fmt::Display for CloudLayer {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut w = String::from(format!("{}{:03}", self.coverage, self.height));
+        if let Some(cloud_type) = &self.cloud_type {
+            w.push_str(&cloud_type.to_string());
+        }
+        write!(f, "{}", w)
+    }
+}
+
+struct VisibilityPhenomenaCloudsGroup {
+    visibility: Visibility,
+    runway_visual_ranges: Option<Vec<RunwayVisualRange>>,
+    phenomena: Option<Vec<Phenomenon>>,
+    cloud_layers: Option<Vec<CloudLayer>>,
+}
+
+impl VisibilityPhenomenaCloudsGroup {
+    fn is_cavok(&self) -> bool {
+        self.visibility.visibility > 9999 && (self.cloud_layers.is_none() || self.cloud_layers.as_ref().unwrap().is_empty())
+    }
+}
+
+impl fmt::Display for VisibilityPhenomenaCloudsGroup {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.is_cavok() {
+            write!(f, "CAVOK")
+        } else {
+            let mut w = String::new();
+            w.push_str(self.visibility.to_string().as_ref());
+            if let Some(runway_visual_ranges) = &self.runway_visual_ranges {
+                for rvr in runway_visual_ranges {
+                    w.push_str(format!(" {}", rvr).as_str());
+                }
+            }
+            if let Some(phenomena) = &self.phenomena {
+                for phenomenon in phenomena {
+                    w.push_str(format!(" {}", phenomenon).as_str());
+                }
+            }
+            if let Some(cloud_layers) = &self.cloud_layers {
+                for layer in cloud_layers {
+                    w.push_str(format!(" {}", layer).as_str());
+                }
+            } else {
+                w.push_str(" NSC");
+            }
+            write!(f, "{}", w)
+        }
+    }
+}
+
 /// A METAR or SPECI observation message
 pub struct ObservationMessage {
     message_type: MessageType,
     location: String,
     observation_time: u32,
     is_auto: bool,
+    visibility_phenomena_clouds_group: VisibilityPhenomenaCloudsGroup,
 }
 
 fn main() {
@@ -508,5 +599,61 @@ mod tests {
             code: PhenomenonCode::RA,
         };
         assert_eq!(phenomenon.to_string(), "VCTSRA");
+    }
+
+    #[test]
+    fn cloud_layer() {
+        let layer = CloudLayer{
+            coverage: CloudCoverage::BKN,
+            height: 20,
+            cloud_type: Some(CloudType::CB),
+        };
+        assert_eq!(layer.to_string(), "BKN020CB");
+    }
+
+    #[test]
+    fn vis_group() {
+        let vg = VisibilityPhenomenaCloudsGroup{
+            visibility: Visibility { visibility: 5000, directional: Some(DirectionalVisibility(2000, Direction::E)), },
+            runway_visual_ranges: Some(vec![RunwayVisualRange{
+                runway: Runway { identifier: 26, suffix: None },
+                prefix: Some(P),
+                range: 2000,
+                suffix: None,
+            }]),
+            phenomena: Some(vec![Phenomenon{
+                intensity: None,
+                modifiers: None,
+                code: PhenomenonCode::DZ,
+            }]),
+            cloud_layers: Some(vec![CloudLayer{
+                coverage: CloudCoverage::FEW,
+                height: 15,
+                cloud_type: None,
+            }]),
+        };
+        assert_eq!(vg.to_string(), "5000 2000E R26/P2000 DZ FEW015");
+    }
+
+    #[test]
+    fn vis_group_cavok() {
+        let vg = VisibilityPhenomenaCloudsGroup{
+            visibility: Visibility { visibility: 12000, directional: None, },
+            runway_visual_ranges: None,
+            phenomena: None,
+            cloud_layers: None,
+        };
+        assert_eq!(vg.to_string(), "CAVOK");
+    }
+
+    #[test]
+    fn vis_group_9000_nsc() {
+        let vg = VisibilityPhenomenaCloudsGroup{
+            visibility: Visibility { visibility: 9000, directional: None, },
+            runway_visual_ranges: None,
+            phenomena: None,
+            cloud_layers: None,
+        };
+        assert_eq!(vg.to_string(), "9000 NSC");
     }
 }
