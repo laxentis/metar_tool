@@ -94,6 +94,21 @@ enum Direction {
     SW,
 }
 
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Direction::N => write!(f, "N"),
+            Direction::E => write!(f, "E"),
+            Direction::S => write!(f, "S"),
+            Direction::W => write!(f, "W"),
+            Direction::NE => write!(f, "NE"),
+            Direction::NW => write!(f, "NW"),
+            Direction::SE => write!(f, "SE"),
+            Direction::SW => write!(f, "SW"),
+        }
+    }
+}
+
 /// Wind varying between two directions
 struct WindVariance(i32, i32);
 
@@ -137,32 +152,7 @@ struct DirectionalVisibility(u32, Direction);
 
 impl fmt::Display for DirectionalVisibility {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.1 {
-            Direction::N => {
-                write!(f, "{:04}N", self.0)
-            }
-            Direction::E => {
-                write!(f, "{:04}E", self.0)
-            }
-            Direction::S => {
-                write!(f, "{:04}S", self.0)
-            }
-            Direction::W => {
-                write!(f, "{:04}W", self.0)
-            }
-            Direction::NE => {
-                write!(f, "{:04}NE", self.0)
-            }
-            Direction::NW => {
-                write!(f, "{:04}NW", self.0)
-            }
-            Direction::SE => {
-                write!(f, "{:04}SE", self.0)
-            }
-            Direction::SW => {
-                write!(f, "{:04}SW", self.0)
-            }
-        }
+        write!(f, "{:04}{}", self.0, self.1.to_string())
     }
 }
 
@@ -187,10 +177,29 @@ enum RunwayVisualRangePrefix {
     P,
 }
 
+impl fmt::Display for RunwayVisualRangePrefix {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            RunwayVisualRangePrefix::M => write!(f, "M"),
+            RunwayVisualRangePrefix::P => write!(f, "P"),
+        }
+    }
+}
+
 enum RunwayVisualRangeSuffix {
     U,
     N,
     D
+}
+
+impl fmt::Display for RunwayVisualRangeSuffix {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            RunwayVisualRangeSuffix::U => write!(f, "U"),
+            RunwayVisualRangeSuffix::N => write!(f, "N"),
+            RunwayVisualRangeSuffix::D => write!(f, "D"),
+        }
+    }
 }
 
 struct RunwayVisualRange {
@@ -204,28 +213,11 @@ impl fmt::Display for RunwayVisualRange {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut w = String::from(format!("R{}/", self.runway.to_string()));
         if let Some(prefix) = &self.prefix {
-            match prefix {
-                RunwayVisualRangePrefix::M => {
-                    w.push_str("M");
-                }
-                RunwayVisualRangePrefix::P => {
-                    w.push_str("P");
-                }
-            }
+            w.push_str(&prefix.to_string());
         }
         w.push_str(format!("{:04}", self.range).as_ref());
         if let Some(suffix) = &self.suffix {
-            match suffix {
-                RunwayVisualRangeSuffix::U => {
-                    w.push_str("U");
-                }
-                RunwayVisualRangeSuffix::N => {
-                    w.push_str("N");
-                }
-                RunwayVisualRangeSuffix::D => {
-                    w.push_str("D");
-                }
-            }
+            w.push_str(&suffix.to_string());
         }
         write!(f, "{}", w)
     }
