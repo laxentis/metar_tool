@@ -182,8 +182,57 @@ impl fmt::Display for Visibility {
     }
 }
 
+enum RunwayVisualRangePrefix {
+    M,
+    P,
+}
+
+enum RunwayVisualRangeSuffix {
+    U,
+    N,
+    D
+}
+
+struct RunwayVisualRange {
+    runway: Runway,
+    prefix: Option<RunwayVisualRangePrefix>,
+    range: u32,
+    suffix: Option<RunwayVisualRangeSuffix>,
+}
+
+impl fmt::Display for RunwayVisualRange {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut w = String::from(format!("R{}/", self.runway.to_string()));
+        if let Some(prefix) = &self.prefix {
+            match prefix {
+                RunwayVisualRangePrefix::M => {
+                    w.push_str("M");
+                }
+                RunwayVisualRangePrefix::P => {
+                    w.push_str("P");
+                }
+            }
+        }
+        w.push_str(format!("{:04}", self.range).as_ref());
+        if let Some(suffix) = &self.suffix {
+            match suffix {
+                RunwayVisualRangeSuffix::U => {
+                    w.push_str("U");
+                }
+                RunwayVisualRangeSuffix::N => {
+                    w.push_str("N");
+                }
+                RunwayVisualRangeSuffix::D => {
+                    w.push_str("D");
+                }
+            }
+        }
+        write!(f, "{}", w)
+    }
+}
+
 /// A METAR or SPECI observation message
-struct ObservationMessage {
+pub struct ObservationMessage {
     message_type: MessageType,
     location: String,
     observation_time: u32,
@@ -198,6 +247,8 @@ fn main() {
 mod tests {
     use super::*;
     use crate::RunwaySuffix::L;
+    use crate::RunwayVisualRangePrefix::P;
+    use crate::RunwayVisualRangeSuffix::U;
     use crate::SpeedUnits::{Knots, MetersPerSecond};
 
     #[test]
@@ -294,5 +345,27 @@ mod tests {
             directional: Some(DirectionalVisibility(2000, Direction::E)),
         };
         assert_eq!(vis.to_string(), "1500 2000E");
+    }
+
+    #[test]
+    fn runway_visual_range_p2000() {
+        let rvr = RunwayVisualRange{
+            runway: Runway { identifier: 28, suffix: Some(L) },
+            prefix: Some(P),
+            range: 2000,
+            suffix: None,
+        };
+        assert_eq!(rvr.to_string(), "R28L/P2000");
+    }
+
+    #[test]
+    fn runway_visual_range_0125u() {
+        let rvr = RunwayVisualRange{
+            runway: Runway { identifier: 26, suffix: None },
+            prefix: None,
+            range: 125,
+            suffix: Some(U),
+        };
+        assert_eq!(rvr.to_string(), "R26/0125U");
     }
 }
