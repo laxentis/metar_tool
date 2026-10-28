@@ -223,6 +223,124 @@ impl fmt::Display for RunwayVisualRange {
     }
 }
 
+enum PhenomenonIntensity{
+    Plus,
+    Minus,
+}
+
+impl fmt::Display for PhenomenonIntensity {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PhenomenonIntensity::Plus => write!(f, "+"),
+            PhenomenonIntensity::Minus => write!(f, "-"),
+        }
+    }
+}
+
+enum PhenomenonCode {
+    DZ,
+    RA,
+    SN,
+    SG,
+    PL,
+    GR,
+    GS,
+    UP,
+    BR,
+    FG,
+    FU,
+    VA,
+    DU,
+    SA,
+    HZ,
+    PO,
+    SQ,
+    FC,
+    SS,
+    DS,
+    TS,
+    NSW
+}
+
+impl fmt::Display for PhenomenonCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PhenomenonCode::DZ => write!(f, "DZ"),
+            PhenomenonCode::RA => write!(f, "RA"),
+            PhenomenonCode::SN => write!(f, "SN"),
+            PhenomenonCode::SG => write!(f, "SG"),
+            PhenomenonCode::PL => write!(f, "PL"),
+            PhenomenonCode::GR => write!(f, "GR"),
+            PhenomenonCode::GS => write!(f, "GS"),
+            PhenomenonCode::UP => write!(f, "UP"),
+            PhenomenonCode::BR => write!(f, "BR"),
+            PhenomenonCode::FG => write!(f, "FG"),
+            PhenomenonCode::FU => write!(f, "FU"),
+            PhenomenonCode::VA => write!(f, "VA"),
+            PhenomenonCode::DU => write!(f, "DU"),
+            PhenomenonCode::SA => write!(f, "SA"),
+            PhenomenonCode::HZ => write!(f, "HZ"),
+            PhenomenonCode::PO => write!(f, "PO"),
+            PhenomenonCode::SQ => write!(f, "SQ"),
+            PhenomenonCode::FC => write!(f, "FC"),
+            PhenomenonCode::SS => write!(f, "SS"),
+            PhenomenonCode::DS => write!(f, "DS"),
+            PhenomenonCode::TS => write!(f, "TS"),
+            PhenomenonCode::NSW => write!(f, "NSW")
+        }
+    }
+}
+
+enum PhenomenonModifier{
+    MI,
+    BC,
+    PR,
+    DR,
+    BL,
+    SH,
+    TS,
+    FZ,
+    VC
+}
+
+impl fmt::Display for PhenomenonModifier {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PhenomenonModifier::MI => write!(f, "MI"),
+            PhenomenonModifier::BC => write!(f, "BC"),
+            PhenomenonModifier::PR => write!(f, "PR"),
+            PhenomenonModifier::DR => write!(f, "DR"),
+            PhenomenonModifier::BL => write!(f, "BL"),
+            PhenomenonModifier::SH => write!(f, "SH"),
+            PhenomenonModifier::TS => write!(f, "TS"),
+            PhenomenonModifier::FZ => write!(f, "FZ"),
+            PhenomenonModifier::VC => write!(f, "VC"),
+        }
+    }
+}
+
+struct Phenomenon {
+    intensity: Option<PhenomenonIntensity>,
+    modifiers: Option<Vec<PhenomenonModifier>>,
+    code: PhenomenonCode,
+}
+
+impl fmt::Display for Phenomenon {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut w = String::new();
+        if let Some(intensity) = &self.intensity {
+            w.push_str(&intensity.to_string());
+        }
+        if let Some(modifiers) = &self.modifiers {
+            for modifier in modifiers {
+                w.push_str(&modifier.to_string());
+            }
+        }
+        w.push_str(self.code.to_string().as_ref());
+        write!(f, "{}", w)
+    }
+}
+
 /// A METAR or SPECI observation message
 pub struct ObservationMessage {
     message_type: MessageType,
@@ -237,8 +355,9 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use crate::PhenomenonIntensity::{Minus, Plus};
+    use crate::PhenomenonModifier::SH;
     use super::*;
-    use crate::RunwaySuffix::L;
     use crate::RunwayVisualRangePrefix::P;
     use crate::RunwayVisualRangeSuffix::U;
     use crate::SpeedUnits::{Knots, MetersPerSecond};
@@ -256,7 +375,7 @@ mod tests {
     fn suffixed_runway() {
         let rwy = Runway {
             identifier: 08,
-            suffix: Some(L),
+            suffix: Some(RunwaySuffix::L),
         };
         assert_eq!(rwy.to_string(), "08L");
     }
@@ -342,7 +461,7 @@ mod tests {
     #[test]
     fn runway_visual_range_p2000() {
         let rvr = RunwayVisualRange{
-            runway: Runway { identifier: 28, suffix: Some(L) },
+            runway: Runway { identifier: 28, suffix: Some(RunwaySuffix::L) },
             prefix: Some(P),
             range: 2000,
             suffix: None,
@@ -359,5 +478,35 @@ mod tests {
             suffix: Some(U),
         };
         assert_eq!(rvr.to_string(), "R26/0125U");
+    }
+
+    #[test]
+    fn phenomenon_light_drizzle() {
+        let phenomenon = Phenomenon{
+            intensity: Some(Minus),
+            modifiers: None,
+            code: PhenomenonCode::DZ,
+        };
+        assert_eq!(phenomenon.to_string(), "-DZ");
+    }
+
+    #[test]
+    fn phenomenon_heavy_showers_rain() {
+        let phenomenon = Phenomenon{
+            intensity: Some(Plus),
+            modifiers: Some(vec![SH]),
+            code: PhenomenonCode::RA,
+        };
+        assert_eq!(phenomenon.to_string(), "+SHRA");
+    }
+
+    #[test]
+    fn phenomenon_vctsra() {
+        let phenomenon = Phenomenon{
+            intensity: None,
+            modifiers: Some(vec![PhenomenonModifier::VC, PhenomenonModifier::TS]),
+            code: PhenomenonCode::RA,
+        };
+        assert_eq!(phenomenon.to_string(), "VCTSRA");
     }
 }
