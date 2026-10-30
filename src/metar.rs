@@ -1,4 +1,6 @@
 use std::fmt;
+use std::fmt::Display;
+use egui::TextBuffer;
 
 /// Runway designation suffix (Left, Center, Right)
 #[allow(dead_code)]
@@ -189,7 +191,7 @@ impl fmt::Display for RunwayVisualRangePrefix {
 enum RunwayVisualRangeSuffix {
     U,
     N,
-    D
+    D,
 }
 
 impl fmt::Display for RunwayVisualRangeSuffix {
@@ -223,7 +225,7 @@ impl fmt::Display for RunwayVisualRange {
     }
 }
 
-enum PhenomenonIntensity{
+enum PhenomenonIntensity {
     Plus,
     Minus,
 }
@@ -259,7 +261,7 @@ enum PhenomenonCode {
     SS,
     DS,
     TS,
-    NSW
+    NSW,
 }
 
 impl fmt::Display for PhenomenonCode {
@@ -286,12 +288,12 @@ impl fmt::Display for PhenomenonCode {
             PhenomenonCode::SS => write!(f, "SS"),
             PhenomenonCode::DS => write!(f, "DS"),
             PhenomenonCode::TS => write!(f, "TS"),
-            PhenomenonCode::NSW => write!(f, "NSW")
+            PhenomenonCode::NSW => write!(f, "NSW"),
         }
     }
 }
 
-enum PhenomenonModifier{
+enum PhenomenonModifier {
     MI,
     BC,
     PR,
@@ -300,7 +302,7 @@ enum PhenomenonModifier{
     SH,
     TS,
     FZ,
-    VC
+    VC,
 }
 
 impl fmt::Display for PhenomenonModifier {
@@ -361,14 +363,14 @@ impl fmt::Display for CloudCoverage {
 
 enum CloudType {
     CB,
-    TCU
+    TCU,
 }
 
 impl fmt::Display for CloudType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             CloudType::CB => write!(f, "CB"),
-            CloudType::TCU => write!(f, "TCU")
+            CloudType::TCU => write!(f, "TCU"),
         }
     }
 }
@@ -376,12 +378,12 @@ impl fmt::Display for CloudType {
 struct CloudLayer {
     coverage: CloudCoverage,
     height: u32,
-    cloud_type: Option<CloudType>
+    cloud_type: Option<CloudType>,
 }
 
 impl fmt::Display for CloudLayer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut w = String::from(format!("{}{:03}", self.coverage, self.height));
+        let mut w = String::from(format!("{}{:03}", self.coverage, self.height/100));
         if let Some(cloud_type) = &self.cloud_type {
             w.push_str(&cloud_type.to_string());
         }
@@ -398,7 +400,8 @@ struct VisibilityPhenomenaCloudsGroup {
 
 impl VisibilityPhenomenaCloudsGroup {
     fn is_cavok(&self) -> bool {
-        self.visibility.visibility > 9999 && (self.cloud_layers.is_none() || self.cloud_layers.as_ref().unwrap().is_empty())
+        self.visibility.visibility > 9999
+            && (self.cloud_layers.is_none() || self.cloud_layers.as_ref().unwrap().is_empty())
     }
 }
 
@@ -431,23 +434,58 @@ impl fmt::Display for VisibilityPhenomenaCloudsGroup {
     }
 }
 
+enum PressureUnits {
+    Hectopascals,
+    InchesOfMercury,
+}
+
+struct PressureSetting {
+    value: f32,
+    units: PressureUnits,
+}
+
+impl Display for PressureSetting {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.units {
+            PressureUnits::Hectopascals => write!(f, "Q{:04}", self.value as u32),
+            PressureUnits::InchesOfMercury => {
+                let fst = self.value.trunc();
+                let snd = (self.value - fst) * 100_f32;
+                write!(f, "A{:02}{}", fst as u32, snd.trunc() as u32) },
+        }
+    }
+}
+
 /// A METAR or SPECI observation message
 pub struct ObservationMessage {
     message_type: MessageType,
     location: String,
+    observation_day: u32,
     observation_time: u32,
     is_auto: bool,
     visibility_phenomena_clouds_group: VisibilityPhenomenaCloudsGroup,
+    pressure: PressureSetting,
+}
+
+impl Display for ObservationMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut w = String::from(format!("{} {} {:02}{:04}", self.message_type, self.location, self.observation_day, self.observation_time));
+        if self.is_auto {
+            w.push_str(" AUTO");
+        }
+        w.push_str(format!(" {} {}=", self.visibility_phenomena_clouds_group.to_string(), self.pressure.to_string()).as_str());
+        write!(f, "{}", w)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::metar::*;
     use crate::metar::PhenomenonIntensity::*;
     use crate::metar::PhenomenonModifier::*;
     use crate::metar::RunwayVisualRangePrefix::*;
     use crate::metar::RunwayVisualRangeSuffix::*;
     use crate::metar::SpeedUnits::*;
+    use crate::metar::*;
 
     #[test]
     fn simple_runway() {
@@ -547,8 +585,11 @@ mod tests {
 
     #[test]
     fn runway_visual_range_p2000() {
-        let rvr = RunwayVisualRange{
-            runway: Runway { identifier: 28, suffix: Some(RunwaySuffix::L) },
+        let rvr = RunwayVisualRange {
+            runway: Runway {
+                identifier: 28,
+                suffix: Some(RunwaySuffix::L),
+            },
             prefix: Some(P),
             range: 2000,
             suffix: None,
@@ -558,8 +599,11 @@ mod tests {
 
     #[test]
     fn runway_visual_range_0125u() {
-        let rvr = RunwayVisualRange{
-            runway: Runway { identifier: 26, suffix: None },
+        let rvr = RunwayVisualRange {
+            runway: Runway {
+                identifier: 26,
+                suffix: None,
+            },
             prefix: None,
             range: 125,
             suffix: Some(U),
@@ -569,7 +613,7 @@ mod tests {
 
     #[test]
     fn phenomenon_light_drizzle() {
-        let phenomenon = Phenomenon{
+        let phenomenon = Phenomenon {
             intensity: Some(Minus),
             modifiers: None,
             code: PhenomenonCode::DZ,
@@ -579,7 +623,7 @@ mod tests {
 
     #[test]
     fn phenomenon_heavy_showers_rain() {
-        let phenomenon = Phenomenon{
+        let phenomenon = Phenomenon {
             intensity: Some(Plus),
             modifiers: Some(vec![SH]),
             code: PhenomenonCode::RA,
@@ -588,8 +632,8 @@ mod tests {
     }
 
     #[test]
-    fn phenomenon_vctsra() {
-        let phenomenon = Phenomenon{
+    fn phenomenon_vc_ts_ra() {
+        let phenomenon = Phenomenon {
             intensity: None,
             modifiers: Some(vec![PhenomenonModifier::VC, PhenomenonModifier::TS]),
             code: PhenomenonCode::RA,
@@ -599,9 +643,9 @@ mod tests {
 
     #[test]
     fn cloud_layer() {
-        let layer = CloudLayer{
+        let layer = CloudLayer {
             coverage: CloudCoverage::BKN,
-            height: 20,
+            height: 2000,
             cloud_type: Some(CloudType::CB),
         };
         assert_eq!(layer.to_string(), "BKN020CB");
@@ -609,22 +653,28 @@ mod tests {
 
     #[test]
     fn vis_group() {
-        let vg = VisibilityPhenomenaCloudsGroup{
-            visibility: Visibility { visibility: 5000, directional: Some(DirectionalVisibility(2000, Direction::E)), },
-            runway_visual_ranges: Some(vec![RunwayVisualRange{
-                runway: Runway { identifier: 26, suffix: None },
+        let vg = VisibilityPhenomenaCloudsGroup {
+            visibility: Visibility {
+                visibility: 5000,
+                directional: Some(DirectionalVisibility(2000, Direction::E)),
+            },
+            runway_visual_ranges: Some(vec![RunwayVisualRange {
+                runway: Runway {
+                    identifier: 26,
+                    suffix: None,
+                },
                 prefix: Some(crate::metar::RunwayVisualRangePrefix::P),
                 range: 2000,
                 suffix: None,
             }]),
-            phenomena: Some(vec![Phenomenon{
+            phenomena: Some(vec![Phenomenon {
                 intensity: None,
                 modifiers: None,
                 code: PhenomenonCode::DZ,
             }]),
-            cloud_layers: Some(vec![CloudLayer{
+            cloud_layers: Some(vec![CloudLayer {
                 coverage: CloudCoverage::FEW,
-                height: 15,
+                height: 1500,
                 cloud_type: None,
             }]),
         };
@@ -633,8 +683,11 @@ mod tests {
 
     #[test]
     fn vis_group_cavok() {
-        let vg = VisibilityPhenomenaCloudsGroup{
-            visibility: Visibility { visibility: 12000, directional: None, },
+        let vg = VisibilityPhenomenaCloudsGroup {
+            visibility: Visibility {
+                visibility: 12000,
+                directional: None,
+            },
             runway_visual_ranges: None,
             phenomena: None,
             cloud_layers: None,
@@ -644,12 +697,60 @@ mod tests {
 
     #[test]
     fn vis_group_9000_nsc() {
-        let vg = VisibilityPhenomenaCloudsGroup{
-            visibility: Visibility { visibility: 9000, directional: None, },
+        let vg = VisibilityPhenomenaCloudsGroup {
+            visibility: Visibility {
+                visibility: 9000,
+                directional: None,
+            },
             runway_visual_ranges: None,
             phenomena: None,
             cloud_layers: None,
         };
         assert_eq!(vg.to_string(), "9000 NSC");
+    }
+
+    #[test]
+    fn qnh() {
+        let ps = PressureSetting {
+            units: PressureUnits::Hectopascals,
+            value: 1013.25,
+        };
+        assert_eq!(ps.to_string(), "Q1013");
+    }
+
+    #[test]
+    fn qnh_in_hg() {
+        let ps = PressureSetting {
+            units: PressureUnits::InchesOfMercury,
+            value: 29.92,
+        };
+        assert_eq!(ps.to_string(), "A2992");
+    }
+
+    #[test]
+    fn metar() {
+        let observation = ObservationMessage{
+            message_type: MessageType::Metar,
+            location: "EPBC".to_string(),
+            observation_day: 1,
+            observation_time: 600,
+            is_auto: true,
+            visibility_phenomena_clouds_group: VisibilityPhenomenaCloudsGroup {
+                visibility: Visibility { visibility: 5000, directional: None },
+                runway_visual_ranges: None,
+                phenomena: Some(vec![Phenomenon{
+                    intensity: None,
+                    modifiers: None,
+                    code: PhenomenonCode::DZ,
+                }]),
+                cloud_layers: Some(vec![CloudLayer{
+                    coverage: CloudCoverage::FEW,
+                    height: 1200,
+                    cloud_type: None,
+                }]),
+            },
+            pressure: PressureSetting { value: 1013.25, units: PressureUnits::Hectopascals },
+        };
+        assert_eq!(observation.to_string(), "METAR EPBC 010600 AUTO 5000 DZ FEW012 Q1013=");
     }
 }
