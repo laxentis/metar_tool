@@ -1,8 +1,15 @@
+//! Data types for constructing and formatting METAR and SPECI reports.
+//!
+//! The types in this module represent report groups and their coded values.
+//! Their [`fmt::Display`] implementations serialize those values in the
+//! conventional METAR token format. The report model currently covers the
+//! report header, visibility and weather groups, cloud layers, and pressure.
+
 use std::fmt;
 use std::fmt::Display;
 use egui::TextBuffer;
 
-/// Runway designation suffix (Left, Center, Right)
+/// Runway designation suffix identifying a parallel runway.
 #[allow(dead_code)]
 enum RunwaySuffix {
     L,
@@ -20,7 +27,7 @@ impl fmt::Display for RunwaySuffix {
     }
 }
 
-/// Runway identification with optional suffix
+/// Runway number with an optional parallel-runway suffix.
 struct Runway {
     identifier: u32,
     suffix: Option<RunwaySuffix>,
@@ -37,6 +44,7 @@ impl fmt::Display for Runway {
 }
 
 #[allow(dead_code)]
+/// Kind of aviation observation report, including corrected reports.
 enum MessageType {
     Metar,
     MetarCor,
@@ -63,7 +71,7 @@ impl fmt::Display for MessageType {
     }
 }
 
-/// Wind speed units (KT or MPS)
+/// Unit used to encode wind speed in a report.
 #[allow(dead_code)]
 enum SpeedUnits {
     Knots,
@@ -83,7 +91,7 @@ impl fmt::Display for SpeedUnits {
     }
 }
 
-/// Cardinal direction
+/// One of the eight principal compass directions.
 #[allow(dead_code)]
 enum Direction {
     N,
@@ -111,7 +119,7 @@ impl fmt::Display for Direction {
     }
 }
 
-/// Wind varying between two directions
+/// The endpoints of a variable wind direction range, in degrees.
 struct WindVariance(i32, i32);
 
 impl fmt::Display for WindVariance {
@@ -120,7 +128,7 @@ impl fmt::Display for WindVariance {
     }
 }
 
-/// METAR wind data
+/// Wind direction, speed, gust, units, and optional direction variation.
 struct WindData {
     direction: Option<i32>,
     speed: i32,
@@ -149,7 +157,7 @@ impl fmt::Display for WindData {
     }
 }
 
-/// Visibility in one of 8 cardinal directions
+/// Visibility reported for a particular compass direction.
 struct DirectionalVisibility(u32, Direction);
 
 impl fmt::Display for DirectionalVisibility {
@@ -158,7 +166,7 @@ impl fmt::Display for DirectionalVisibility {
     }
 }
 
-/// Raw visibility group
+/// Prevailing visibility and optional directional visibility information.
 struct Visibility {
     visibility: u32,
     directional: Option<DirectionalVisibility>,
@@ -174,6 +182,7 @@ impl fmt::Display for Visibility {
     }
 }
 
+/// Qualifier indicating a runway visual range below or above its stated value.
 enum RunwayVisualRangePrefix {
     M,
     P,
@@ -188,6 +197,7 @@ impl fmt::Display for RunwayVisualRangePrefix {
     }
 }
 
+/// Trend of runway visual range: upward, unchanged, or downward.
 enum RunwayVisualRangeSuffix {
     U,
     N,
@@ -204,6 +214,7 @@ impl fmt::Display for RunwayVisualRangeSuffix {
     }
 }
 
+/// Runway visual range, with optional limit and trend indicators.
 struct RunwayVisualRange {
     runway: Runway,
     prefix: Option<RunwayVisualRangePrefix>,
@@ -225,6 +236,7 @@ impl fmt::Display for RunwayVisualRange {
     }
 }
 
+/// Intensity qualifier for a present-weather phenomenon.
 enum PhenomenonIntensity {
     Plus,
     Minus,
@@ -239,6 +251,7 @@ impl fmt::Display for PhenomenonIntensity {
     }
 }
 
+/// WMO present-weather code used in a METAR report.
 enum PhenomenonCode {
     DZ,
     RA,
@@ -293,6 +306,7 @@ impl fmt::Display for PhenomenonCode {
     }
 }
 
+/// Descriptor that modifies a present-weather phenomenon code.
 enum PhenomenonModifier {
     MI,
     BC,
@@ -321,6 +335,7 @@ impl fmt::Display for PhenomenonModifier {
     }
 }
 
+/// A present-weather group with optional intensity and descriptors.
 struct Phenomenon {
     intensity: Option<PhenomenonIntensity>,
     modifiers: Option<Vec<PhenomenonModifier>>,
@@ -343,6 +358,7 @@ impl fmt::Display for Phenomenon {
     }
 }
 
+/// Sky coverage category for a reported cloud layer.
 enum CloudCoverage {
     FEW,
     SCT,
@@ -361,6 +377,7 @@ impl fmt::Display for CloudCoverage {
     }
 }
 
+/// Convective cloud type that may be appended to a cloud layer.
 enum CloudType {
     CB,
     TCU,
@@ -375,6 +392,7 @@ impl fmt::Display for CloudType {
     }
 }
 
+/// Cloud coverage, base height in feet, and optional cloud type.
 struct CloudLayer {
     coverage: CloudCoverage,
     height: u32,
@@ -391,6 +409,7 @@ impl fmt::Display for CloudLayer {
     }
 }
 
+/// Visibility, runway visual ranges, weather phenomena, and cloud information.
 struct VisibilityPhenomenaCloudsGroup {
     visibility: Visibility,
     runway_visual_ranges: Option<Vec<RunwayVisualRange>>,
@@ -399,6 +418,7 @@ struct VisibilityPhenomenaCloudsGroup {
 }
 
 impl VisibilityPhenomenaCloudsGroup {
+    /// Returns whether the available visibility and cloud data permit CAVOK.
     fn is_cavok(&self) -> bool {
         self.visibility.visibility > 9999
             && (self.cloud_layers.is_none() || self.cloud_layers.as_ref().unwrap().is_empty())
@@ -434,11 +454,13 @@ impl fmt::Display for VisibilityPhenomenaCloudsGroup {
     }
 }
 
+/// Unit system used for the coded pressure setting.
 enum PressureUnits {
     Hectopascals,
     InchesOfMercury,
 }
 
+/// Altimeter or QNH pressure value and its reporting unit.
 struct PressureSetting {
     value: f32,
     units: PressureUnits,
@@ -456,7 +478,10 @@ impl Display for PressureSetting {
     }
 }
 
-/// A METAR or SPECI observation message
+/// A METAR or SPECI observation message and its formatted report groups.
+///
+/// Formatting this value produces a report ending in `=`. The observation
+/// time is represented as the day of the month and UTC time in `HHMM` form.
 pub struct ObservationMessage {
     message_type: MessageType,
     location: String,
