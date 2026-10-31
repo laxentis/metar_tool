@@ -5,9 +5,9 @@
 //! conventional METAR token format. The report model currently covers the
 //! report header, visibility and weather groups, cloud layers, and pressure.
 
+use egui::TextBuffer;
 use std::fmt;
 use std::fmt::Display;
-use egui::TextBuffer;
 
 /// Runway designation suffix identifying a parallel runway.
 #[allow(dead_code)]
@@ -401,7 +401,7 @@ struct CloudLayer {
 
 impl fmt::Display for CloudLayer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut w = String::from(format!("{}{:03}", self.coverage, self.height/100));
+        let mut w = String::from(format!("{}{:03}", self.coverage, self.height / 100));
         if let Some(cloud_type) = &self.cloud_type {
             w.push_str(&cloud_type.to_string());
         }
@@ -473,7 +473,8 @@ impl Display for PressureSetting {
             PressureUnits::InchesOfMercury => {
                 let fst = self.value.trunc();
                 let snd = (self.value - fst) * 100_f32;
-                write!(f, "A{:02}{}", fst as u32, snd.trunc() as u32) },
+                write!(f, "A{:02}{}", fst as u32, snd.trunc() as u32)
+            }
         }
     }
 }
@@ -489,16 +490,30 @@ pub struct ObservationMessage {
     observation_time: u32,
     is_auto: bool,
     visibility_phenomena_clouds_group: VisibilityPhenomenaCloudsGroup,
+    temperature: u32,
+    dew_point: u32,
     pressure: PressureSetting,
 }
 
 impl Display for ObservationMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut w = String::from(format!("{} {} {:02}{:04}", self.message_type, self.location, self.observation_day, self.observation_time));
+        let mut w = String::from(format!(
+            "{} {} {:02}{:04}",
+            self.message_type, self.location, self.observation_day, self.observation_time
+        ));
         if self.is_auto {
             w.push_str(" AUTO");
         }
-        w.push_str(format!(" {} {}=", self.visibility_phenomena_clouds_group.to_string(), self.pressure.to_string()).as_str());
+        w.push_str(
+            format!(
+                " {} {:02}/{:02} {}=",
+                self.visibility_phenomena_clouds_group.to_string(),
+                self.temperature,
+                self.dew_point,
+                self.pressure.to_string()
+            )
+            .as_str(),
+        );
         write!(f, "{}", w)
     }
 }
@@ -754,28 +769,39 @@ mod tests {
 
     #[test]
     fn metar() {
-        let observation = ObservationMessage{
+        let observation = ObservationMessage {
             message_type: MessageType::Metar,
             location: "EPBC".to_string(),
             observation_day: 1,
             observation_time: 600,
             is_auto: true,
             visibility_phenomena_clouds_group: VisibilityPhenomenaCloudsGroup {
-                visibility: Visibility { visibility: 5000, directional: None },
+                visibility: Visibility {
+                    visibility: 5000,
+                    directional: None,
+                },
                 runway_visual_ranges: None,
-                phenomena: Some(vec![Phenomenon{
+                phenomena: Some(vec![Phenomenon {
                     intensity: None,
                     modifiers: None,
                     code: PhenomenonCode::DZ,
                 }]),
-                cloud_layers: Some(vec![CloudLayer{
+                cloud_layers: Some(vec![CloudLayer {
                     coverage: CloudCoverage::FEW,
                     height: 1200,
                     cloud_type: None,
                 }]),
             },
-            pressure: PressureSetting { value: 1013.25, units: PressureUnits::Hectopascals },
+            temperature: 15,
+            dew_point: 5,
+            pressure: PressureSetting {
+                value: 1013.25,
+                units: PressureUnits::Hectopascals,
+            },
         };
-        assert_eq!(observation.to_string(), "METAR EPBC 010600 AUTO 5000 DZ FEW012 Q1013=");
+        assert_eq!(
+            observation.to_string(),
+            "METAR EPBC 010600 AUTO 5000 DZ FEW012 15/05 Q1013="
+        );
     }
 }
