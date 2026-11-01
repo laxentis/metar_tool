@@ -1,34 +1,39 @@
+use crate::metar::ObservationMessage;
 use eframe::{Frame, Storage};
-use egui::{Ui};
+use egui::Ui;
 
 pub mod metar;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 struct App {
-    icao: String,
-    wind_dir: f32,
-    wind_left: f32,
-    wind_right: f32,
+    hour: u32,
+    minute: u32,
+    wind_dir: i32,
+    wind_left: i32,
+    wind_right: i32,
     wind_vrb: bool,
     wind_varying: bool,
-    wind_speed: f32,
-    wind_max_speed: f32,
+    wind_gusting: bool,
+    wind_max_speed: i32,
     visibility: f32,
+    metar: ObservationMessage,
 }
 
 impl Default for App {
     fn default() -> Self {
-        Self{
-            icao: "EPBC".to_owned(),
-            wind_dir: 280.0,
-            wind_left: 90.0,
-            wind_right: 180.0,
+        Self {
+            hour: 6,
+            minute: 0,
+            wind_dir: 280,
+            wind_left: 90,
+            wind_right: 180,
             wind_vrb: false,
             wind_varying: false,
-            wind_speed: 0.0,
-            wind_max_speed: 0.0,
+            wind_gusting: false,
+            wind_max_speed: 0,
             visibility: 0.0,
+            metar: ObservationMessage::default(),
         }
     }
 }
@@ -68,26 +73,84 @@ impl eframe::App for App {
 
             ui.horizontal(|ui| {
                 ui.label("ICAO: ");
-                ui.text_edit_singleline(&mut self.icao);
+                ui.text_edit_singleline(&mut self.metar.location);
             });
+            ui.horizontal(|ui| {
+                ui.label("Day:");
+                ui.add(egui::DragValue::new(&mut self.metar.observation_day).range(1..=31));
+            });
+            ui.horizontal(|ui| {
+                ui.label("Time:");
+                ui.add(egui::DragValue::new(&mut self.hour).range(0..=23));
+                ui.label(":");
+                ui.add(egui::DragValue::new(&mut self.minute).range(0..=59));
+            });
+
+            self.metar.observation_time = self.hour*100 + self.minute;
 
             ui.label("Wind:");
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.wind_vrb, "VRB");
-                ui.add_enabled(!self.wind_vrb, egui::Slider::new(&mut self.wind_dir, 0.0..=359.0).text("°"));
+                ui.add_enabled(
+                    !self.wind_vrb,
+                    egui::Slider::new(&mut self.wind_dir, 0..=350).text("°").step_by(10.0),
+                );
                 ui.checkbox(&mut self.wind_varying, "V");
-                ui.add_enabled(self.wind_varying, egui::RangeSlider::new(&mut self.wind_left, &mut self.wind_right, 0.0..=359.0).text("°"));
+                ui.add_enabled(
+                    self.wind_varying,
+                    egui::RangeSlider::new(&mut self.wind_left, &mut self.wind_right, 0..=350).step_by(10.0)
+                        .text("°"),
+                );
             });
+            if (self.wind_vrb) {
+                self.metar.wind.direction = None;
+            } else {
+                self.metar.wind.direction = Some(self.wind_dir);
+            }
+            if (self.wind_varying) {
+                self.metar.wind.variance = Some(metar::WindVariance(self.wind_left,self.wind_right));
+            } else {
+                self.metar.wind.variance = None;
+            }
             ui.horizontal(|ui| {
                 ui.label("Speed:");
-                ui.add(egui::Slider::new(&mut self.wind_speed, 0.0..=100.0).text("kts"));
-                ui.label("Max:");
-                ui.add(egui::Slider::new(&mut self.wind_max_speed, 0.0..=100.0).text("kts"));
+                ui.add(egui::Slider::new(&mut self.metar.wind.speed, 0..=100).text("kts"));
+                ui.checkbox(&mut self.wind_gusting, "G");
+                ui.add_enabled(self.wind_gusting, egui::Slider::new(&mut self.wind_max_speed, 0..=100).text("kts"));
             });
+
+            if self.wind_gusting {
+                self.metar.wind.gust_speed = Some(self.wind_max_speed);
+            } else {
+                self.metar.wind.gust_speed = None;
+            }
 
             ui.label("Visibility:");
             ui.add(egui::Slider::new(&mut self.visibility, 0.0..=10000.0).text("m"));
 
+            ui.horizontal(|ui| {
+                ui.label("Temperature:");
+                ui.add(egui::Slider::new(&mut self.metar.temperature, -50..=50).text("°C"));
+                ui.label("Dew Point:");
+                ui.add(egui::Slider::new(&mut self.metar.dew_point, -50..=50).text("°C"));
+            });
+            ui.horizontal(|ui| {
+                ui.label("QNH:");
+                ui.add(
+                    egui::Slider::new(&mut self.metar.pressure.value, 800.0..=1200.0)
+                        .text("hPa")
+                        .step_by(1.0),
+                );
+            });
+
+            ui.separator();
+            ui.horizontal(|ui| {
+                if ui.button("📋").clicked() {
+                    ui.ctx().copy_text(self.metar.to_string());
+                };
+                ui.add_space(10.0);
+                ui.label(self.metar.to_string());
+            });
             ui.separator();
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
@@ -102,7 +165,6 @@ impl eframe::App for App {
 }
 
 fn main() -> eframe::Result {
-
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([400.0, 300.0])

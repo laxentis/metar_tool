@@ -5,12 +5,12 @@
 //! conventional METAR token format. The report model currently covers the
 //! report header, visibility and weather groups, cloud layers, and pressure.
 
-use egui::TextBuffer;
 use std::fmt;
 use std::fmt::Display;
 
 /// Runway designation suffix identifying a parallel runway.
 #[allow(dead_code)]
+#[derive(serde::Serialize, serde::Deserialize)]
 enum RunwaySuffix {
     L,
     C,
@@ -28,6 +28,7 @@ impl fmt::Display for RunwaySuffix {
 }
 
 /// Runway number with an optional parallel-runway suffix.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Runway {
     identifier: u32,
     suffix: Option<RunwaySuffix>,
@@ -45,6 +46,7 @@ impl fmt::Display for Runway {
 
 #[allow(dead_code)]
 /// Kind of aviation observation report, including corrected reports.
+#[derive(serde::Serialize, serde::Deserialize)]
 enum MessageType {
     Metar,
     MetarCor,
@@ -73,6 +75,7 @@ impl fmt::Display for MessageType {
 
 /// Unit used to encode wind speed in a report.
 #[allow(dead_code)]
+#[derive(serde::Serialize, serde::Deserialize)]
 enum SpeedUnits {
     Knots,
     MetersPerSecond,
@@ -93,6 +96,7 @@ impl fmt::Display for SpeedUnits {
 
 /// One of the eight principal compass directions.
 #[allow(dead_code)]
+#[derive(serde::Serialize, serde::Deserialize)]
 enum Direction {
     N,
     E,
@@ -120,21 +124,23 @@ impl fmt::Display for Direction {
 }
 
 /// The endpoints of a variable wind direction range, in degrees.
-struct WindVariance(i32, i32);
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct WindVariance(pub i32, pub i32);
 
 impl fmt::Display for WindVariance {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}V{}", self.0, self.1)
+        write!(f, "{:03}V{:03}", self.0, self.1)
     }
 }
 
 /// Wind direction, speed, gust, units, and optional direction variation.
-struct WindData {
-    direction: Option<i32>,
-    speed: i32,
-    gust_speed: Option<i32>,
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct WindData {
+    pub(crate) direction: Option<i32>,
+    pub speed: i32,
+    pub gust_speed: Option<i32>,
     speed_units: SpeedUnits,
-    variance: Option<WindVariance>,
+    pub(crate) variance: Option<WindVariance>,
 }
 
 impl fmt::Display for WindData {
@@ -158,6 +164,7 @@ impl fmt::Display for WindData {
 }
 
 /// Visibility reported for a particular compass direction.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct DirectionalVisibility(u32, Direction);
 
 impl fmt::Display for DirectionalVisibility {
@@ -167,6 +174,7 @@ impl fmt::Display for DirectionalVisibility {
 }
 
 /// Prevailing visibility and optional directional visibility information.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Visibility {
     visibility: u32,
     directional: Option<DirectionalVisibility>,
@@ -183,6 +191,7 @@ impl fmt::Display for Visibility {
 }
 
 /// Qualifier indicating a runway visual range below or above its stated value.
+#[derive(serde::Serialize, serde::Deserialize)]
 enum RunwayVisualRangePrefix {
     M,
     P,
@@ -198,6 +207,7 @@ impl fmt::Display for RunwayVisualRangePrefix {
 }
 
 /// Trend of runway visual range: upward, unchanged, or downward.
+#[derive(serde::Serialize, serde::Deserialize)]
 enum RunwayVisualRangeSuffix {
     U,
     N,
@@ -215,6 +225,7 @@ impl fmt::Display for RunwayVisualRangeSuffix {
 }
 
 /// Runway visual range, with optional limit and trend indicators.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct RunwayVisualRange {
     runway: Runway,
     prefix: Option<RunwayVisualRangePrefix>,
@@ -237,6 +248,7 @@ impl fmt::Display for RunwayVisualRange {
 }
 
 /// Intensity qualifier for a present-weather phenomenon.
+#[derive(serde::Serialize, serde::Deserialize)]
 enum PhenomenonIntensity {
     Plus,
     Minus,
@@ -252,6 +264,7 @@ impl fmt::Display for PhenomenonIntensity {
 }
 
 /// WMO present-weather code used in a METAR report.
+#[derive(serde::Serialize, serde::Deserialize)]
 enum PhenomenonCode {
     DZ,
     RA,
@@ -307,6 +320,7 @@ impl fmt::Display for PhenomenonCode {
 }
 
 /// Descriptor that modifies a present-weather phenomenon code.
+#[derive(serde::Serialize, serde::Deserialize)]
 enum PhenomenonModifier {
     MI,
     BC,
@@ -336,6 +350,7 @@ impl fmt::Display for PhenomenonModifier {
 }
 
 /// A present-weather group with optional intensity and descriptors.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Phenomenon {
     intensity: Option<PhenomenonIntensity>,
     modifiers: Option<Vec<PhenomenonModifier>>,
@@ -359,6 +374,7 @@ impl fmt::Display for Phenomenon {
 }
 
 /// Sky coverage category for a reported cloud layer.
+#[derive(serde::Serialize, serde::Deserialize)]
 enum CloudCoverage {
     FEW,
     SCT,
@@ -378,6 +394,7 @@ impl fmt::Display for CloudCoverage {
 }
 
 /// Convective cloud type that may be appended to a cloud layer.
+#[derive(serde::Serialize, serde::Deserialize)]
 enum CloudType {
     CB,
     TCU,
@@ -393,6 +410,7 @@ impl fmt::Display for CloudType {
 }
 
 /// Cloud coverage, base height in feet, and optional cloud type.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct CloudLayer {
     coverage: CloudCoverage,
     height: u32,
@@ -410,6 +428,7 @@ impl fmt::Display for CloudLayer {
 }
 
 /// Visibility, runway visual ranges, weather phenomena, and cloud information.
+#[derive(serde::Serialize, serde::Deserialize)]
 struct VisibilityPhenomenaCloudsGroup {
     visibility: Visibility,
     runway_visual_ranges: Option<Vec<RunwayVisualRange>>,
@@ -455,15 +474,17 @@ impl fmt::Display for VisibilityPhenomenaCloudsGroup {
 }
 
 /// Unit system used for the coded pressure setting.
+#[derive(serde::Serialize, serde::Deserialize)]
 enum PressureUnits {
     Hectopascals,
     InchesOfMercury,
 }
 
 /// Altimeter or QNH pressure value and its reporting unit.
-struct PressureSetting {
-    value: f32,
-    units: PressureUnits,
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct PressureSetting {
+    pub value: f32,
+    pub units: PressureUnits,
 }
 
 impl Display for PressureSetting {
@@ -483,16 +504,46 @@ impl Display for PressureSetting {
 ///
 /// Formatting this value produces a report ending in `=`. The observation
 /// time is represented as the day of the month and UTC time in `HHMM` form.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct ObservationMessage {
     message_type: MessageType,
-    location: String,
-    observation_day: u32,
-    observation_time: u32,
+    pub location: String,
+    pub observation_day: u32,
+    pub observation_time: u32,
     is_auto: bool,
+    pub(crate) wind: WindData,
     visibility_phenomena_clouds_group: VisibilityPhenomenaCloudsGroup,
-    temperature: u32,
-    dew_point: u32,
-    pressure: PressureSetting,
+    pub temperature: i32,
+    pub dew_point: i32,
+    pub pressure: PressureSetting,
+}
+
+impl ObservationMessage {
+    pub(crate) fn default() -> Self {
+        Self {
+            message_type: MessageType::Metar,
+            location: "EPBC".to_string(),
+            observation_day: 1,
+            observation_time: 600,
+            is_auto: false,
+            wind: WindData {
+                direction: Some(280),
+                speed: 5,
+                gust_speed: None,
+                speed_units: SpeedUnits::Knots,
+                variance: None,
+            },
+            visibility_phenomena_clouds_group: VisibilityPhenomenaCloudsGroup {
+                visibility: Visibility { visibility: 10000, directional: None },
+                runway_visual_ranges: None,
+                phenomena: None,
+                cloud_layers: None,
+            },
+            temperature: 15,
+            dew_point: 15,
+            pressure: PressureSetting { value: 1013.25, units: PressureUnits::Hectopascals },
+        }
+    }
 }
 
 impl Display for ObservationMessage {
@@ -504,6 +555,7 @@ impl Display for ObservationMessage {
         if self.is_auto {
             w.push_str(" AUTO");
         }
+        w.push_str(format!(" {}", self.wind).as_str());
         w.push_str(
             format!(
                 " {} {:02}/{:02} {}=",
@@ -775,6 +827,13 @@ mod tests {
             observation_day: 1,
             observation_time: 600,
             is_auto: true,
+            wind: WindData {
+                direction: Some(280),
+                speed: 5,
+                gust_speed: None,
+                speed_units: SpeedUnits::Knots,
+                variance: None,
+            },
             visibility_phenomena_clouds_group: VisibilityPhenomenaCloudsGroup {
                 visibility: Visibility {
                     visibility: 5000,
@@ -801,7 +860,7 @@ mod tests {
         };
         assert_eq!(
             observation.to_string(),
-            "METAR EPBC 010600 AUTO 5000 DZ FEW012 15/05 Q1013="
+            "METAR EPBC 010600 AUTO 28005KT 5000 DZ FEW012 15/05 Q1013="
         );
     }
 }
