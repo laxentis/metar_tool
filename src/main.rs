@@ -1,20 +1,34 @@
 use eframe::{Frame, Storage};
-use egui::{CentralPanel, Ui};
+use egui::{Ui};
 
 pub mod metar;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 struct App {
-    label: String,
-    value: f32,
+    icao: String,
+    wind_dir: f32,
+    wind_left: f32,
+    wind_right: f32,
+    wind_vrb: bool,
+    wind_varying: bool,
+    wind_speed: f32,
+    wind_max_speed: f32,
+    visibility: f32,
 }
 
 impl Default for App {
     fn default() -> Self {
         Self{
-            label: "Hello".to_owned(),
-            value: 0.0,
+            icao: "EPBC".to_owned(),
+            wind_dir: 280.0,
+            wind_left: 90.0,
+            wind_right: 180.0,
+            wind_vrb: false,
+            wind_varying: false,
+            wind_speed: 0.0,
+            wind_max_speed: 0.0,
+            visibility: 0.0,
         }
     }
 }
@@ -30,10 +44,6 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn save(&mut self, storage: &mut dyn Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
-
     fn ui(&mut self, ui: &mut Ui, _frame: &mut Frame) {
         egui::Panel::top("top_panel").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
@@ -54,29 +64,40 @@ impl eframe::App for App {
 
         egui::CentralPanel::default().show(ui, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("eframe template");
+            ui.heading("METAR Tool");
 
             ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(&mut self.label);
+                ui.label("ICAO: ");
+                ui.text_edit_singleline(&mut self.icao);
             });
 
-            ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                self.value += 1.0;
-            }
+            ui.label("Wind:");
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.wind_vrb, "VRB");
+                ui.add_enabled(!self.wind_vrb, egui::Slider::new(&mut self.wind_dir, 0.0..=359.0).text("°"));
+                ui.checkbox(&mut self.wind_varying, "V");
+                ui.add_enabled(self.wind_varying, egui::RangeSlider::new(&mut self.wind_left, &mut self.wind_right, 0.0..=359.0).text("°"));
+            });
+            ui.horizontal(|ui| {
+                ui.label("Speed:");
+                ui.add(egui::Slider::new(&mut self.wind_speed, 0.0..=100.0).text("kts"));
+                ui.label("Max:");
+                ui.add(egui::Slider::new(&mut self.wind_max_speed, 0.0..=100.0).text("kts"));
+            });
+
+            ui.label("Visibility:");
+            ui.add(egui::Slider::new(&mut self.visibility, 0.0..=10000.0).text("m"));
 
             ui.separator();
-
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/main/",
-                "Source code."
-            ));
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 egui::warn_if_debug_build(ui);
             });
         });
+    }
+
+    fn save(&mut self, storage: &mut dyn Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
     }
 }
 
@@ -89,7 +110,7 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "eframe template",
+        "METAR Tool",
         native_options,
         Box::new(|cc| Ok(Box::new(App::new(cc)))),
     )
