@@ -5,9 +5,10 @@ edition = "2024"
 
 [dependencies]
 chrono = "0.4.45"
-eframe = "0.37.0"
+eframe = { version = "0.37.0", features = ["persistence"] }
 egui = "0.37.0"
 reqwest = "0.13.5"
 sqlx = "0.9.0"
 tokio = "1.54.1"
 tracing = "0.1.44"
+serde = { version = "*" , features = ["derive"]}
