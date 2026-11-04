@@ -186,9 +186,8 @@ impl fmt::Display for Visibility {
         if self.visibility >= 9999 {
             w.push_str("9999");
         } else if self.visibility >= 5000 {
-            w.push_str(format!("{:04}", self.visibility/1000 * 1000).as_str());
-        }
-        else {
+            w.push_str(format!("{:04}", self.visibility / 1000 * 1000).as_str());
+        } else {
             w.push_str(format!("{:04}", self.visibility).as_str());
         }
 
@@ -471,8 +470,12 @@ impl fmt::Display for VisibilityPhenomenaCloudsGroup {
                 }
             }
             if let Some(cloud_layers) = &self.cloud_layers {
-                for layer in cloud_layers {
-                    w.push_str(format!(" {}", layer).as_str());
+                if cloud_layers.is_empty() {
+                    w.push_str(" NSC");
+                } else {
+                    for layer in cloud_layers {
+                        w.push_str(format!(" {}", layer).as_str());
+                    }
                 }
             } else {
                 w.push_str(" NSC");
@@ -543,14 +546,20 @@ impl ObservationMessage {
                 variance: None,
             },
             visibility_phenomena_clouds_group: VisibilityPhenomenaCloudsGroup {
-                visibility: Visibility { visibility: 10000, directional: None },
+                visibility: Visibility {
+                    visibility: 10000,
+                    directional: None,
+                },
                 runway_visual_ranges: None,
                 phenomena: None,
                 cloud_layers: None,
             },
             temperature: 15,
             dew_point: 15,
-            pressure: PressureSetting { value: 1013.25, units: PressureUnits::Hectopascals },
+            pressure: PressureSetting {
+                value: 1013.25,
+                units: PressureUnits::Hectopascals,
+            },
         }
     }
 }
