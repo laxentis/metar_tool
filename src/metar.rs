@@ -147,7 +147,10 @@ impl fmt::Display for WindData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut w = String::new();
         if self.direction.is_some() {
-            w.push_str(format!("{:03}", self.direction.as_ref().unwrap()).as_ref());
+            let dir = self.direction.unwrap() as f64 / 10.0;
+            let dir = dir.round() * 10.0;
+            let dir = dir as i32;
+            w.push_str(format!("{:03}", dir).as_str());
         } else {
             w.push_str("VRB");
         }

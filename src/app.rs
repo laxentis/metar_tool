@@ -108,9 +108,8 @@ impl eframe::App for App {
                 ui.checkbox(&mut self.wind_vrb, "VRB");
                 ui.add_enabled(
                     !self.wind_vrb,
-                    egui::Slider::new(&mut self.wind_dir, 0..=350)
-                        .text("°")
-                        .step_by(10.0),
+                    egui::DragValue::new(&mut self.wind_dir)
+                        .range(0..=350).suffix("°"),
                 );
                 ui.checkbox(&mut self.wind_varying, "V");
                 ui.add_enabled(
@@ -133,11 +132,11 @@ impl eframe::App for App {
             }
             ui.horizontal(|ui| {
                 ui.label("Speed:");
-                ui.add(egui::Slider::new(&mut self.metar.wind.speed, 0..=100).text("kts"));
+                ui.add(egui::DragValue::new(&mut self.metar.wind.speed).suffix(" kts").range(0..=100));
                 ui.checkbox(&mut self.wind_gusting, "G");
                 ui.add_enabled(
                     self.wind_gusting,
-                    egui::Slider::new(&mut self.wind_max_speed, 0..=100).text("kts"),
+                    egui::DragValue::new(&mut self.wind_max_speed).suffix(" kts").range(0..=100),
                 );
             });
 
@@ -405,16 +404,16 @@ impl eframe::App for App {
 
             ui.horizontal(|ui| {
                 ui.label("Temperature:");
-                ui.add(egui::Slider::new(&mut self.metar.temperature, -50..=50).text("°C"));
+                ui.add(egui::DragValue::new(&mut self.metar.temperature).suffix(" °C").range(-50..=50));
                 ui.label("Dew Point:");
-                ui.add(egui::Slider::new(&mut self.metar.dew_point, -50..=50).text("°C"));
+                ui.add(egui::DragValue::new(&mut self.metar.dew_point).suffix(" °C").range(-50..=50));
             });
             ui.horizontal(|ui| {
                 ui.label("QNH:");
                 ui.add(
-                    egui::Slider::new(&mut self.metar.pressure.value, 800.0..=1200.0)
-                        .text("hPa")
-                        .step_by(1.0),
+                    egui::DragValue::new(&mut self.metar.pressure.value)
+                        .suffix(" hPa")
+                        .range(800.0..=1200.0)
                 );
             });
 
