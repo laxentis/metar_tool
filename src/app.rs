@@ -456,7 +456,7 @@ impl eframe::App for App {
                             self.overwrite,
                             egui::TextEdit::singleline(&mut self.overwrite_metar)
                                 .hint_text("METAR")
-                                .min_size(vec2(400.0, 20.0)),
+                                .clip_text(false)
                         );
                     });
                 });

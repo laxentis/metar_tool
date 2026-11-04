@@ -451,7 +451,9 @@ impl VisibilityPhenomenaCloudsGroup {
     /// Returns whether the available visibility and cloud data permit CAVOK.
     fn is_cavok(&self) -> bool {
         self.visibility.visibility > 9999
-            && (self.cloud_layers.is_none() || self.cloud_layers.as_ref().unwrap().is_empty())
+            && (self.cloud_layers.is_none() || self.cloud_layers.as_ref().unwrap().is_empty()
+            && (self.phenomena.is_none() || self.phenomena.as_ref().unwrap().is_empty())
+        )
     }
 }
 
