@@ -1,7 +1,7 @@
 use crate::metar::ObservationMessage;
 use crate::reminder::{ReminderConfig, ReminderService};
-use eframe::{Frame, Storage};
 use eframe::emath::vec2;
+use eframe::{Frame, Storage};
 use egui::Ui;
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -159,6 +159,31 @@ impl eframe::App for App {
             });
 
             ui.horizontal(|ui| {
+                ui.label("Clouds:");
+                let clouds = &mut self.metar.visibility_phenomena_clouds_group.cloud_layers;
+                if let Some(clouds) = clouds {
+                    for cloud in clouds {
+                        ui.label(cloud.to_string());
+                        // TODO: Add a button to open a window to edit or delete the cloud layer
+                    }
+                }
+                // TODO: Add a button to open a window to add a new cloud layer
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Phenomenon:");
+                let phenomena = &mut self.metar.visibility_phenomena_clouds_group.phenomena;
+                if let Some(phenomena) = phenomena {
+                    for phenomenon in phenomena {
+                        ui.label(phenomenon.to_string());
+                        // TODO: Add a button to open a window to edit or delete the phenomenon
+                    }
+                }
+                // TODO: Add a button to open a window to add a new phenomenon
+            });
+
+
+            ui.horizontal(|ui| {
                 ui.label("Temperature:");
                 ui.add(egui::Slider::new(&mut self.metar.temperature, -50..=50).text("°C"));
                 ui.label("Dew Point:");
@@ -186,10 +211,14 @@ impl eframe::App for App {
                     ui.label(self.metar.to_string());
                     ui.horizontal(|ui| {
                         ui.checkbox(&mut self.overwrite, "Overwrite");
-                        ui.add_enabled(self.overwrite, egui::TextEdit::singleline(&mut self.overwrite_metar).hint_text("METAR").min_size(vec2(400.0, 20.0)));
+                        ui.add_enabled(
+                            self.overwrite,
+                            egui::TextEdit::singleline(&mut self.overwrite_metar)
+                                .hint_text("METAR")
+                                .min_size(vec2(400.0, 20.0)),
+                        );
                     });
                 });
-
             });
             ui.separator();
 
@@ -224,4 +253,3 @@ impl eframe::App for App {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
 }
-
