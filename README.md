@@ -2,6 +2,9 @@
 
 A small desktop application for composing METAR observation reports. It provides a graphical editor for common report groups, formats the result as a METAR string, and can copy the report to the clipboard.
 
+<img width="600" height="500" alt="image" src="https://github.com/user-attachments/assets/1fac0549-0f80-4d48-b837-788a30904c27" />
+
+
 ## Features
 
 - Edit the station ICAO code, observation day and time, wind, visibility, cloud layers, present weather, temperature, dew point, and pressure.
