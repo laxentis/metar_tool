@@ -1,6 +1,7 @@
 use crate::metar::ObservationMessage;
 use crate::reminder::{ReminderConfig, ReminderService};
 use eframe::{Frame, Storage};
+use eframe::emath::vec2;
 use egui::Ui;
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -17,6 +18,8 @@ pub struct App {
     wind_max_speed: i32,
     visibility: f32,
     metar: ObservationMessage,
+    overwrite: bool,
+    overwrite_metar: String,
     reminder_config: ReminderConfig,
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
@@ -40,6 +43,8 @@ impl Default for App {
             metar: ObservationMessage::default(),
             reminder: ReminderService::start(config),
             reminder_config: config,
+            overwrite: false,
+            overwrite_metar: String::new(),
         }
     }
 }
@@ -174,7 +179,17 @@ impl eframe::App for App {
                     ui.ctx().copy_text(self.metar.to_string());
                 };
                 ui.add_space(10.0);
-                ui.label(self.metar.to_string());
+                if !self.overwrite {
+                    self.overwrite_metar = self.metar.to_string();
+                }
+                ui.vertical(|ui| {
+                    ui.label(self.metar.to_string());
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut self.overwrite, "Overwrite");
+                        ui.add_enabled(self.overwrite, egui::TextEdit::singleline(&mut self.overwrite_metar).hint_text("METAR").min_size(vec2(400.0, 20.0)));
+                    });
+                });
+
             });
             ui.separator();
 
