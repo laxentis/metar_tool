@@ -258,7 +258,7 @@ impl fmt::Display for RunwayVisualRange {
 
 /// Intensity qualifier for a present-weather phenomenon.
 #[derive(serde::Serialize, serde::Deserialize)]
-enum PhenomenonIntensity {
+pub enum PhenomenonIntensity {
     Plus,
     Minus,
 }
@@ -274,7 +274,7 @@ impl fmt::Display for PhenomenonIntensity {
 
 /// WMO present-weather code used in a METAR report.
 #[derive(serde::Serialize, serde::Deserialize)]
-enum PhenomenonCode {
+pub enum PhenomenonCode {
     DZ,
     RA,
     SN,
@@ -404,7 +404,7 @@ impl fmt::Display for CloudCoverage {
 
 /// Convective cloud type that may be appended to a cloud layer.
 #[derive(serde::Serialize, serde::Deserialize)]
-enum CloudType {
+pub enum CloudType {
     CB,
     TCU,
 }
@@ -484,7 +484,7 @@ impl fmt::Display for VisibilityPhenomenaCloudsGroup {
 
 /// Unit system used for the coded pressure setting.
 #[derive(serde::Serialize, serde::Deserialize)]
-enum PressureUnits {
+pub enum PressureUnits {
     Hectopascals,
     InchesOfMercury,
 }

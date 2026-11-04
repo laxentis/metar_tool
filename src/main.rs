@@ -115,12 +115,12 @@ impl eframe::App for App {
                         .text("°"),
                 );
             });
-            if (self.wind_vrb) {
+            if self.wind_vrb {
                 self.metar.wind.direction = None;
             } else {
                 self.metar.wind.direction = Some(self.wind_dir);
             }
-            if (self.wind_varying) {
+            if self.wind_varying {
                 self.metar.wind.variance =
                     Some(metar::WindVariance(self.wind_left, self.wind_right));
             } else {
