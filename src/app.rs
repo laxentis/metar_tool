@@ -21,7 +21,7 @@ pub struct App {
     overwrite: bool,
     overwrite_metar: String,
     reminder_config: ReminderConfig,
-    sound_notifications_window_open: bool,
+    sound_settings_window_open: bool,
     cloud_editor: Option<usize>,
     phenomenon_editor: Option<usize>,
     #[serde(skip_serializing)]
@@ -46,7 +46,7 @@ impl Default for App {
             metar: ObservationMessage::default(),
             reminder: ReminderService::start(config),
             reminder_config: config,
-            sound_notifications_window_open: false,
+            sound_settings_window_open: false,
             cloud_editor: None,
             phenomenon_editor: None,
             overwrite: false,
@@ -78,10 +78,11 @@ impl eframe::App for App {
                         }
                     });
                     ui.add_space(16.0);
-                }
-
-                if ui.button("Sound notifications").clicked() {
-                    self.sound_notifications_window_open = true;
+                    ui.menu_button("Settings", |ui| {
+                        if ui.button("Sound").clicked() {
+                            self.sound_settings_window_open = true;
+                        }
+                    });
                 }
 
                 egui::widgets::global_theme_preference_buttons(ui);
@@ -115,7 +116,8 @@ impl eframe::App for App {
                 ui.add_enabled(
                     !self.wind_vrb,
                     egui::DragValue::new(&mut self.wind_dir)
-                        .range(0..=350).suffix("°"),
+                        .range(0..=350)
+                        .suffix("°"),
                 );
                 ui.checkbox(&mut self.wind_varying, "V");
                 ui.add_enabled(
@@ -138,11 +140,17 @@ impl eframe::App for App {
             }
             ui.horizontal(|ui| {
                 ui.label("Speed:");
-                ui.add(egui::DragValue::new(&mut self.metar.wind.speed).suffix(" kts").range(0..=100));
+                ui.add(
+                    egui::DragValue::new(&mut self.metar.wind.speed)
+                        .suffix(" kts")
+                        .range(0..=100),
+                );
                 ui.checkbox(&mut self.wind_gusting, "G");
                 ui.add_enabled(
                     self.wind_gusting,
-                    egui::DragValue::new(&mut self.wind_max_speed).suffix(" kts").range(0..=100),
+                    egui::DragValue::new(&mut self.wind_max_speed)
+                        .suffix(" kts")
+                        .range(0..=100),
                 );
             });
 
@@ -410,16 +418,24 @@ impl eframe::App for App {
 
             ui.horizontal(|ui| {
                 ui.label("Temperature:");
-                ui.add(egui::DragValue::new(&mut self.metar.temperature).suffix(" °C").range(-50..=50));
+                ui.add(
+                    egui::DragValue::new(&mut self.metar.temperature)
+                        .suffix(" °C")
+                        .range(-50..=50),
+                );
                 ui.label("Dew Point:");
-                ui.add(egui::DragValue::new(&mut self.metar.dew_point).suffix(" °C").range(-50..=50));
+                ui.add(
+                    egui::DragValue::new(&mut self.metar.dew_point)
+                        .suffix(" °C")
+                        .range(-50..=50),
+                );
             });
             ui.horizontal(|ui| {
                 ui.label("QNH:");
                 ui.add(
                     egui::DragValue::new(&mut self.metar.pressure.value)
                         .suffix(" hPa")
-                        .range(800.0..=1200.0)
+                        .range(800.0..=1200.0),
                 );
             });
 
@@ -452,8 +468,8 @@ impl eframe::App for App {
             });
         });
 
-        egui::Window::new("Sound notifications")
-            .open(&mut self.sound_notifications_window_open)
+        egui::Window::new("Sound settings")
+            .open(&mut self.sound_settings_window_open)
             .show(ui.ctx(), |ui| {
                 let mut changed = false;
                 changed |= ui
