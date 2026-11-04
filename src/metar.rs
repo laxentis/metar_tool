@@ -29,7 +29,7 @@ impl fmt::Display for RunwaySuffix {
 
 /// Runway number with an optional parallel-runway suffix.
 #[derive(serde::Serialize, serde::Deserialize)]
-struct Runway {
+pub struct Runway {
     identifier: u32,
     suffix: Option<RunwaySuffix>,
 }
@@ -47,7 +47,7 @@ impl fmt::Display for Runway {
 #[allow(dead_code)]
 /// Kind of aviation observation report, including corrected reports.
 #[derive(serde::Serialize, serde::Deserialize)]
-enum MessageType {
+pub enum MessageType {
     Metar,
     MetarCor,
     Speci,
@@ -165,7 +165,7 @@ impl fmt::Display for WindData {
 
 /// Visibility reported for a particular compass direction.
 #[derive(serde::Serialize, serde::Deserialize)]
-struct DirectionalVisibility(u32, Direction);
+pub struct DirectionalVisibility(u32, Direction);
 
 impl fmt::Display for DirectionalVisibility {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -175,14 +175,23 @@ impl fmt::Display for DirectionalVisibility {
 
 /// Prevailing visibility and optional directional visibility information.
 #[derive(serde::Serialize, serde::Deserialize)]
-struct Visibility {
-    visibility: u32,
-    directional: Option<DirectionalVisibility>,
+pub struct Visibility {
+    pub visibility: u32,
+    pub directional: Option<DirectionalVisibility>,
 }
 
 impl fmt::Display for Visibility {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut w = String::from(format!("{:04}", self.visibility));
+        let mut w = String::new();
+        if self.visibility >= 9999 {
+            w.push_str("9999");
+        } else if self.visibility >= 5000 {
+            w.push_str(format!("{:04}", self.visibility/1000 * 1000).as_str());
+        }
+        else {
+            w.push_str(format!("{:04}", self.visibility).as_str());
+        }
+
         if self.directional.is_some() {
             w.push_str(format!(" {}", self.directional.as_ref().unwrap()).as_ref());
         }
@@ -226,7 +235,7 @@ impl fmt::Display for RunwayVisualRangeSuffix {
 
 /// Runway visual range, with optional limit and trend indicators.
 #[derive(serde::Serialize, serde::Deserialize)]
-struct RunwayVisualRange {
+pub struct RunwayVisualRange {
     runway: Runway,
     prefix: Option<RunwayVisualRangePrefix>,
     range: u32,
@@ -321,7 +330,7 @@ impl fmt::Display for PhenomenonCode {
 
 /// Descriptor that modifies a present-weather phenomenon code.
 #[derive(serde::Serialize, serde::Deserialize)]
-enum PhenomenonModifier {
+pub enum PhenomenonModifier {
     MI,
     BC,
     PR,
@@ -351,10 +360,10 @@ impl fmt::Display for PhenomenonModifier {
 
 /// A present-weather group with optional intensity and descriptors.
 #[derive(serde::Serialize, serde::Deserialize)]
-struct Phenomenon {
-    intensity: Option<PhenomenonIntensity>,
-    modifiers: Option<Vec<PhenomenonModifier>>,
-    code: PhenomenonCode,
+pub struct Phenomenon {
+    pub intensity: Option<PhenomenonIntensity>,
+    pub modifiers: Option<Vec<PhenomenonModifier>>,
+    pub code: PhenomenonCode,
 }
 
 impl fmt::Display for Phenomenon {
@@ -375,7 +384,7 @@ impl fmt::Display for Phenomenon {
 
 /// Sky coverage category for a reported cloud layer.
 #[derive(serde::Serialize, serde::Deserialize)]
-enum CloudCoverage {
+pub enum CloudCoverage {
     FEW,
     SCT,
     BKN,
@@ -411,10 +420,10 @@ impl fmt::Display for CloudType {
 
 /// Cloud coverage, base height in feet, and optional cloud type.
 #[derive(serde::Serialize, serde::Deserialize)]
-struct CloudLayer {
-    coverage: CloudCoverage,
-    height: u32,
-    cloud_type: Option<CloudType>,
+pub struct CloudLayer {
+    pub coverage: CloudCoverage,
+    pub height: u32,
+    pub cloud_type: Option<CloudType>,
 }
 
 impl fmt::Display for CloudLayer {
@@ -429,11 +438,11 @@ impl fmt::Display for CloudLayer {
 
 /// Visibility, runway visual ranges, weather phenomena, and cloud information.
 #[derive(serde::Serialize, serde::Deserialize)]
-struct VisibilityPhenomenaCloudsGroup {
-    visibility: Visibility,
-    runway_visual_ranges: Option<Vec<RunwayVisualRange>>,
-    phenomena: Option<Vec<Phenomenon>>,
-    cloud_layers: Option<Vec<CloudLayer>>,
+pub struct VisibilityPhenomenaCloudsGroup {
+    pub visibility: Visibility,
+    pub runway_visual_ranges: Option<Vec<RunwayVisualRange>>,
+    pub phenomena: Option<Vec<Phenomenon>>,
+    pub cloud_layers: Option<Vec<CloudLayer>>,
 }
 
 impl VisibilityPhenomenaCloudsGroup {
@@ -512,7 +521,7 @@ pub struct ObservationMessage {
     pub observation_time: u32,
     is_auto: bool,
     pub(crate) wind: WindData,
-    visibility_phenomena_clouds_group: VisibilityPhenomenaCloudsGroup,
+    pub visibility_phenomena_clouds_group: VisibilityPhenomenaCloudsGroup,
     pub temperature: i32,
     pub dew_point: i32,
     pub pressure: PressureSetting,

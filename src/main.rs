@@ -96,19 +96,22 @@ impl eframe::App for App {
                 ui.add(egui::DragValue::new(&mut self.minute).range(0..=59));
             });
 
-            self.metar.observation_time = self.hour*100 + self.minute;
+            self.metar.observation_time = self.hour * 100 + self.minute;
 
             ui.label("Wind:");
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.wind_vrb, "VRB");
                 ui.add_enabled(
                     !self.wind_vrb,
-                    egui::Slider::new(&mut self.wind_dir, 0..=350).text("°").step_by(10.0),
+                    egui::Slider::new(&mut self.wind_dir, 0..=350)
+                        .text("°")
+                        .step_by(10.0),
                 );
                 ui.checkbox(&mut self.wind_varying, "V");
                 ui.add_enabled(
                     self.wind_varying,
-                    egui::RangeSlider::new(&mut self.wind_left, &mut self.wind_right, 0..=350).step_by(10.0)
+                    egui::RangeSlider::new(&mut self.wind_left, &mut self.wind_right, 0..=350)
+                        .step_by(10.0)
                         .text("°"),
                 );
             });
@@ -118,7 +121,8 @@ impl eframe::App for App {
                 self.metar.wind.direction = Some(self.wind_dir);
             }
             if (self.wind_varying) {
-                self.metar.wind.variance = Some(metar::WindVariance(self.wind_left,self.wind_right));
+                self.metar.wind.variance =
+                    Some(metar::WindVariance(self.wind_left, self.wind_right));
             } else {
                 self.metar.wind.variance = None;
             }
@@ -126,7 +130,10 @@ impl eframe::App for App {
                 ui.label("Speed:");
                 ui.add(egui::Slider::new(&mut self.metar.wind.speed, 0..=100).text("kts"));
                 ui.checkbox(&mut self.wind_gusting, "G");
-                ui.add_enabled(self.wind_gusting, egui::Slider::new(&mut self.wind_max_speed, 0..=100).text("kts"));
+                ui.add_enabled(
+                    self.wind_gusting,
+                    egui::Slider::new(&mut self.wind_max_speed, 0..=100).text("kts"),
+                );
             });
 
             if self.wind_gusting {
@@ -135,8 +142,20 @@ impl eframe::App for App {
                 self.metar.wind.gust_speed = None;
             }
 
-            ui.label("Visibility:");
-            ui.add(egui::Slider::new(&mut self.visibility, 0.0..=10000.0).text("m"));
+            ui.horizontal(|ui| {
+                ui.label("Visibility:");
+                ui.add(
+                    egui::Slider::new(
+                        &mut self
+                            .metar
+                            .visibility_phenomena_clouds_group
+                            .visibility
+                            .visibility,
+                        0..=10000,
+                    )
+                    .text("m"),
+                );
+            });
 
             ui.horizontal(|ui| {
                 ui.label("Temperature:");
@@ -166,10 +185,16 @@ impl eframe::App for App {
             ui.horizontal(|ui| {
                 let mut changed = false;
 
-                changed |= ui.checkbox(&mut self.reminder_config.enabled, "🔊").changed();
-                changed |= ui.add(
-                    egui::RangeSlider::new(&mut self.reminder_config.start_hour, &mut self.reminder_config.end_hour, 0..=23)
-                ).changed();
+                changed |= ui
+                    .checkbox(&mut self.reminder_config.enabled, "🔊")
+                    .changed();
+                changed |= ui
+                    .add(egui::RangeSlider::new(
+                        &mut self.reminder_config.start_hour,
+                        &mut self.reminder_config.end_hour,
+                        0..=23,
+                    ))
+                    .changed();
                 if changed {
                     self.reminder.update_config(self.reminder_config);
                 }
@@ -177,7 +202,6 @@ impl eframe::App for App {
                     self.reminder.test_sound();
                 }
             });
-
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 egui::warn_if_debug_build(ui);
