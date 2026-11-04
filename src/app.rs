@@ -1,6 +1,5 @@
 use crate::metar::ObservationMessage;
 use crate::reminder::{ReminderConfig, ReminderService};
-use eframe::emath::vec2;
 use eframe::{Frame, Storage};
 use egui::Ui;
 
