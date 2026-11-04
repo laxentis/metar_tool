@@ -3,6 +3,9 @@ use eframe::{Frame, Storage};
 use egui::Ui;
 
 pub mod metar;
+mod reminder;
+
+use reminder::{ReminderConfig, ReminderService};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -18,10 +21,15 @@ struct App {
     wind_max_speed: i32,
     visibility: f32,
     metar: ObservationMessage,
+    reminder_config: ReminderConfig,
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
+    reminder: ReminderService,
 }
 
 impl Default for App {
     fn default() -> Self {
+        let config = ReminderConfig::default();
         Self {
             hour: 6,
             minute: 0,
@@ -34,6 +42,8 @@ impl Default for App {
             wind_max_speed: 0,
             visibility: 0.0,
             metar: ObservationMessage::default(),
+            reminder: ReminderService::start(config),
+            reminder_config: config,
         }
     }
 }
@@ -152,6 +162,22 @@ impl eframe::App for App {
                 ui.label(self.metar.to_string());
             });
             ui.separator();
+
+            ui.horizontal(|ui| {
+                let mut changed = false;
+
+                changed |= ui.checkbox(&mut self.reminder_config.enabled, "🔊").changed();
+                changed |= ui.add(
+                    egui::RangeSlider::new(&mut self.reminder_config.start_hour, &mut self.reminder_config.end_hour, 0..=23)
+                ).changed();
+                if changed {
+                    self.reminder.update_config(self.reminder_config);
+                }
+                if ui.button("Test sound").clicked() {
+                    self.reminder.test_sound();
+                }
+            });
+
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 egui::warn_if_debug_build(ui);
