@@ -21,6 +21,7 @@ pub struct App {
     overwrite: bool,
     overwrite_metar: String,
     reminder_config: ReminderConfig,
+    sound_notifications_window_open: bool,
     cloud_editor: Option<usize>,
     phenomenon_editor: Option<usize>,
     #[serde(skip_serializing)]
@@ -45,6 +46,7 @@ impl Default for App {
             metar: ObservationMessage::default(),
             reminder: ReminderService::start(config),
             reminder_config: config,
+            sound_notifications_window_open: false,
             cloud_editor: None,
             phenomenon_editor: None,
             overwrite: false,
@@ -76,6 +78,10 @@ impl eframe::App for App {
                         }
                     });
                     ui.add_space(16.0);
+                }
+
+                if ui.button("Sound notifications").clicked() {
+                    self.sound_notifications_window_open = true;
                 }
 
                 egui::widgets::global_theme_preference_buttons(ui);
@@ -176,7 +182,7 @@ impl eframe::App for App {
                         }
                     }
                 }
-                if ui.button("Add cloud").clicked() {
+                if ui.button("➕").clicked() {
                     let clouds = self
                         .metar
                         .visibility_phenomena_clouds_group
@@ -206,7 +212,7 @@ impl eframe::App for App {
                         }
                     }
                 }
-                if ui.button("Add phenomenon").clicked() {
+                if ui.button("➕").clicked() {
                     let items = self
                         .metar
                         .visibility_phenomena_clouds_group
@@ -441,18 +447,27 @@ impl eframe::App for App {
             });
             ui.separator();
 
-            ui.horizontal(|ui| {
-                let mut changed = false;
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+                egui::warn_if_debug_build(ui);
+            });
+        });
 
+        egui::Window::new("Sound notifications")
+            .open(&mut self.sound_notifications_window_open)
+            .show(ui.ctx(), |ui| {
+                let mut changed = false;
                 changed |= ui
-                    .checkbox(&mut self.reminder_config.enabled, "🔊")
+                    .checkbox(&mut self.reminder_config.enabled, "Enabled")
                     .changed();
                 changed |= ui
-                    .add(egui::RangeSlider::new(
-                        &mut self.reminder_config.start_hour,
-                        &mut self.reminder_config.end_hour,
-                        0..=23,
-                    ))
+                    .add(
+                        egui::RangeSlider::new(
+                            &mut self.reminder_config.start_hour,
+                            &mut self.reminder_config.end_hour,
+                            0..=23,
+                        )
+                        .text("Active hours"),
+                    )
                     .changed();
                 if changed {
                     self.reminder.update_config(self.reminder_config);
@@ -461,11 +476,6 @@ impl eframe::App for App {
                     self.reminder.test_sound();
                 }
             });
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                egui::warn_if_debug_build(ui);
-            });
-        });
     }
 
     fn save(&mut self, storage: &mut dyn Storage) {
