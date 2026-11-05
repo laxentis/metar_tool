@@ -572,7 +572,7 @@ impl ObservationMessage {
 impl Display for ObservationMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut w = String::from(format!(
-            "{} {} {:02}{:04}",
+            "{} {} {:02}{:04}Z",
             self.message_type, self.location, self.observation_day, self.observation_time
         ));
         if self.is_auto {
@@ -883,7 +883,7 @@ mod tests {
         };
         assert_eq!(
             observation.to_string(),
-            "METAR EPBC 010600 AUTO 28005KT 5000 DZ FEW012 15/05 Q1013="
+            "METAR EPBC 010600Z AUTO 28005KT 5000 DZ FEW012 15/05 Q1013="
         );
     }
 }
