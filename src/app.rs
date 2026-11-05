@@ -1,7 +1,9 @@
 use crate::metar::ObservationMessage;
 use crate::reminder::{ReminderConfig, ReminderService};
+use crate::server::send_to_servers;
 use eframe::{Frame, Storage};
 use egui::Ui;
+use std::sync::{Arc, Mutex};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -21,6 +23,10 @@ pub struct App {
     overwrite_metar: String,
     reminder_config: ReminderConfig,
     sound_settings_window_open: bool,
+    server_settings_window_open: bool,
+    servers: Vec<String>,
+    #[serde(skip)]
+    server_results: Arc<Mutex<Vec<String>>>,
     cloud_editor: Option<usize>,
     phenomenon_editor: Option<usize>,
     #[serde(skip_serializing)]
@@ -46,6 +52,9 @@ impl Default for App {
             reminder: ReminderService::start(config),
             reminder_config: config,
             sound_settings_window_open: false,
+            server_settings_window_open: false,
+            servers: Vec::new(),
+            server_results: Arc::new(Mutex::new(Vec::new())),
             cloud_editor: None,
             phenomenon_editor: None,
             overwrite: false,
@@ -81,7 +90,11 @@ impl eframe::App for App {
                         if ui.button("Sound").clicked() {
                             self.sound_settings_window_open = true;
                         }
+                        if ui.button("Servers").clicked() {
+                            self.server_settings_window_open = true;
+                        }
                     });
+                    ui.add_space(16.0);
                 }
 
                 egui::widgets::global_theme_preference_buttons(ui);
@@ -440,6 +453,40 @@ impl eframe::App for App {
 
             ui.separator();
             ui.horizontal(|ui| {
+                if ui.button("Send to servers").clicked() {
+                    let report = if self.overwrite {
+                        self.overwrite_metar.trim().to_owned()
+                    } else {
+                        self.metar.to_string()
+                    };
+                    let servers: Vec<_> = self.servers.iter()
+                        .map(|server| server.trim().to_owned())
+                        .filter(|server| !server.is_empty())
+                        .collect();
+                    if servers.is_empty() {
+                        self.server_results.lock().unwrap().push("Add at least one server URL in Settings → Servers.".into());
+                    } else if report.is_empty() {
+                        self.server_results.lock().unwrap().push("METAR is empty; nothing was sent.".into());
+                    } else {
+                        self.server_results.lock().unwrap().clear();
+                        let results = Arc::clone(&self.server_results);
+                        let context = ui.ctx().clone();
+                        send_to_servers(servers, report, move |result| {
+                            if let Ok(mut results) = results.lock() {
+                                results.push(result);
+                            }
+                            context.request_repaint();
+                        });
+                    }
+                }
+                if let Ok(results) = self.server_results.lock() {
+                    for result in results.iter() {
+                        ui.label(result);
+                    }
+                }
+            });
+            ui.separator();
+            ui.horizontal(|ui| {
                 if ui.button("📋").clicked() {
                     ui.ctx().copy_text(self.metar.to_string());
                 };
@@ -489,6 +536,28 @@ impl eframe::App for App {
                 }
                 if ui.button("Test sound").clicked() {
                     self.reminder.test_sound();
+                }
+            });
+
+        egui::Window::new("Server settings")
+            .open(&mut self.server_settings_window_open)
+            .show(ui.ctx(), |ui| {
+                ui.label("List of servers to which METARs are sent:");
+                ui.label("Each URL receives an HTTP POST with the report as plain text.");
+                let mut remove = None;
+                for (index, server) in self.servers.iter_mut().enumerate() {
+                    ui.horizontal(|ui| {
+                        ui.text_edit_singleline(server).on_hover_text("https://server.example/metar");
+                        if ui.button("Remove").clicked() {
+                            remove = Some(index);
+                        }
+                    });
+                }
+                if let Some(index) = remove {
+                    self.servers.remove(index);
+                }
+                if ui.button("Add server").clicked() {
+                    self.servers.push(String::new());
                 }
             });
     }

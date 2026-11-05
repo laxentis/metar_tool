@@ -1,6 +1,7 @@
 mod app;
 pub mod metar;
 mod reminder;
+mod server;
 
 use crate::app::App;
 
