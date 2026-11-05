@@ -5,7 +5,7 @@ use std::thread;
 /// POST `report` as plain text to each configured URL, reporting each result
 /// through `on_result` from the worker thread.
 pub fn send_to_servers(
-    servers: Vec<String>,
+    servers: Vec<(String, String)>,
     report: String,
     on_result: impl Fn(String) + Send + 'static,
 ) {
@@ -23,14 +23,15 @@ pub fn send_to_servers(
 
         runtime.block_on(async move {
             let client = reqwest::Client::new();
-            for server in servers {
-                let result = match client
+            for (server, api_key) in servers {
+                let mut request = client
                     .post(&server)
                     .header(reqwest::header::CONTENT_TYPE, "text/plain; charset=utf-8")
-                    .body(report.clone())
-                    .send()
-                    .await
-                {
+                    .body(report.clone());
+                if !api_key.is_empty() {
+                    request = request.header("X-API-Key", &api_key);
+                }
+                let result = match request.send().await {
                     Ok(response) if response.status().is_success() => {
                         format!("{server}: sent (HTTP {})", response.status())
                     }

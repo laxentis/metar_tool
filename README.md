@@ -38,7 +38,7 @@ The application is a native eframe/egui desktop program. Its reminder sound is e
 
 Fill in the observation details in the main window. The generated METAR appears at the bottom; use the clipboard button beside it to copy the report. The **Overwrite** option enables editing the displayed text directly.
 
-Configure one or more HTTP(S) endpoints from **Settings → Servers**. Use **Send to servers** to POST the generated report (or the edited overwrite report) as `text/plain` to every configured URL. The app displays each endpoint's response status.
+Configure one or more HTTP(S) endpoints from **Settings → Servers**. Each endpoint can have its own optional API key, which is sent in that server's `X-API-Key` request header. Leave a server's key empty to omit the header for that endpoint. Use **Send to servers** to POST the generated report (or the edited overwrite report) as `text/plain` to every configured URL. The app displays each endpoint's response status.
 
 Open **Sound notifications** to enable or disable hourly reminders, set their active hours, and play a test sound. Reminder playback requires a usable default audio output device.
 

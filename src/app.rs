@@ -5,6 +5,13 @@ use eframe::{Frame, Storage};
 use egui::Ui;
 use std::sync::{Arc, Mutex};
 
+#[derive(serde::Deserialize, serde::Serialize, Default)]
+#[serde(default)]
+struct ServerConfig {
+    url: String,
+    api_key: String,
+}
+
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct App {
@@ -24,7 +31,7 @@ pub struct App {
     reminder_config: ReminderConfig,
     sound_settings_window_open: bool,
     server_settings_window_open: bool,
-    servers: Vec<String>,
+    servers: Vec<ServerConfig>,
     #[serde(skip)]
     server_results: Arc<Mutex<Vec<String>>>,
     cloud_editor: Option<usize>,
@@ -460,8 +467,8 @@ impl eframe::App for App {
                         self.metar.to_string()
                     };
                     let servers: Vec<_> = self.servers.iter()
-                        .map(|server| server.trim().to_owned())
-                        .filter(|server| !server.is_empty())
+                        .filter(|server| !server.url.trim().is_empty())
+                        .map(|server| (server.url.trim().to_owned(), server.api_key.trim().to_owned()))
                         .collect();
                     if servers.is_empty() {
                         self.server_results.lock().unwrap().push("Add at least one server URL in Settings → Servers.".into());
@@ -547,7 +554,12 @@ impl eframe::App for App {
                 let mut remove = None;
                 for (index, server) in self.servers.iter_mut().enumerate() {
                     ui.horizontal(|ui| {
-                        ui.text_edit_singleline(server).on_hover_text("https://server.example/metar");
+                        ui.add(egui::TextEdit::singleline(&mut server.url).hint_text("https://server.example/metar"));
+                        ui.add(
+                            egui::TextEdit::singleline(&mut server.api_key)
+                                .password(true)
+                                .hint_text("Optional API key"),
+                        );
                         if ui.button("Remove").clicked() {
                             remove = Some(index);
                         }
@@ -557,7 +569,7 @@ impl eframe::App for App {
                     self.servers.remove(index);
                 }
                 if ui.button("Add server").clicked() {
-                    self.servers.push(String::new());
+                    self.servers.push(ServerConfig::default());
                 }
             });
     }
