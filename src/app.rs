@@ -1,3 +1,4 @@
+use crate::i18n::{Language, localized};
 use crate::metar::{MessageType, ObservationMessage};
 use crate::reminder::{ReminderConfig, ReminderService};
 use crate::server::send_to_servers;
@@ -25,6 +26,7 @@ struct ServerConfig {
 #[cfg(test)]
 mod tests {
     use super::{parse_server_config, selected_report};
+    use crate::i18n::Language;
     use crate::metar::ObservationMessage;
 
     #[test]
@@ -33,13 +35,16 @@ mod tests {
         let edited = "METAR EPBC 061200Z 28005KT 5000 NSC M05/M12 Q1013=";
         assert_eq!(selected_report(&metar, false, edited), metar.to_string());
         assert_eq!(selected_report(&metar, true, edited), edited);
-        assert_eq!(selected_report(&metar, true, &format!("  {edited}\n")), edited);
+        assert_eq!(
+            selected_report(&metar, true, &format!("  {edited}\n")),
+            edited
+        );
         assert_eq!(selected_report(&metar, true, "  "), "");
     }
 
     #[test]
     fn loads_servers_with_optional_api_keys() {
-        let servers = parse_server_config(r#"{"servers":[{"url":"https://example.com/metar","api_key":"secret"},{"url":"http://localhost:8080"}]}"#).unwrap();
+        let servers = parse_server_config(r#"{"servers":[{"url":"https://example.com/metar","api_key":"secret"},{"url":"http://localhost:8080"}]}"#, Language::English).unwrap();
         assert_eq!(servers.len(), 2);
         assert_eq!(servers[0].url, "https://example.com/metar");
         assert_eq!(servers[0].api_key, "secret");
@@ -55,10 +60,24 @@ mod tests {
             r#"{"servers":[{"url":"https://example.com","api_ke":"secret"}]}"#,
             r#"{}"#,
         ] {
-            let error = parse_server_config(contents).err().expect("invalid config");
+            let error = parse_server_config(contents, Language::English)
+                .err()
+                .expect("invalid config");
             assert!(!error.contains("secret"));
             assert!(!error.contains("123456"));
         }
+    }
+
+    #[test]
+    fn config_errors_are_localized_without_exposing_credentials() {
+        let error = parse_server_config(
+            r#"{"servers":[{"url":"ftp://example.com","api_key":"secret"}]}"#,
+            Language::Polish,
+        )
+        .err()
+        .unwrap();
+        assert_eq!(error, "Serwer 1 musi mieć poprawny adres URL HTTP(S).");
+        assert!(!error.contains("secret"));
     }
 }
 
@@ -73,16 +92,21 @@ struct ServerConfigExport<'a> {
     servers: &'a [ServerConfig],
 }
 
-fn parse_server_config(contents: &str) -> Result<Vec<ServerConfig>, String> {
+fn parse_server_config(contents: &str, language: Language) -> Result<Vec<ServerConfig>, String> {
     let config: ServerConfigFile = serde_json::from_str(contents).map_err(|error| {
-        format!("Invalid server config at line {}, column {}. Expected a JSON object with a servers list containing url, optional name and optional api_key fields.", error.line(), error.column())
+        localized!(language, "Invalid server config at line {}, column {}. Expected a JSON object with a servers list containing url, optional name and optional api_key fields.", "Niepoprawna konfiguracja serwerów: wiersz {}, kolumna {}. Oczekiwano obiektu JSON z listą servers zawierającą url oraz opcjonalne pola name i api_key.", error.line(), error.column())
     })?;
     for (index, server) in config.servers.iter().enumerate() {
         let valid = reqwest::Url::parse(server.url.trim())
             .map(|url| matches!(url.scheme(), "http" | "https") && url.host_str().is_some())
             .unwrap_or(false);
         if !valid {
-            return Err(format!("Server {} must have a valid HTTP(S) URL.", index + 1));
+            return Err(localized!(
+                language,
+                "Server {} must have a valid HTTP(S) URL.",
+                "Serwer {} musi mieć poprawny adres URL HTTP(S).",
+                index + 1
+            ));
         }
     }
     Ok(config.servers)
@@ -91,6 +115,7 @@ fn parse_server_config(contents: &str) -> Result<Vec<ServerConfig>, String> {
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct App {
+    language: Language,
     hour: u32,
     minute: u32,
     wind_dir: i32,
@@ -124,6 +149,7 @@ impl Default for App {
     fn default() -> Self {
         let config = ReminderConfig::default();
         Self {
+            language: Language::default(),
             hour: 6,
             minute: 0,
             wind_dir: 280,
@@ -163,32 +189,53 @@ impl App {
 
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut Ui, _frame: &mut Frame) {
+        let language = self.language;
         egui::Panel::top("top_panel").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 // NOTE: no File->Quit on web pages!
                 let is_web = cfg!(target_arch = "wasm32");
                 if !is_web {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Quit").clicked() {
+                    ui.menu_button(language.text("File", "Plik"), |ui| {
+                        if ui.button(language.text("Quit", "Zakończ")).clicked() {
                             ui.send_viewport_cmd(egui::ViewportCommand::Close);
                         }
                     });
                     ui.add_space(16.0);
-                    ui.menu_button("Settings", |ui| {
-                        if ui.button("Sound").clicked() {
+                    ui.menu_button(language.text("Settings", "Ustawienia"), |ui| {
+                        ui.menu_button(language.text("Language", "Język"), |ui| {
+                            ui.selectable_value(&mut self.language, Language::English, "English");
+                            ui.selectable_value(&mut self.language, Language::Polish, "Polski");
+                        });
+                        if ui.button(language.text("Sound", "Dźwięk")).clicked() {
                             self.sound_settings_window_open = true;
                         }
-                        if ui.button("Servers").clicked() {
+                        if ui.button(language.text("Servers", "Serwery")).clicked() {
                             self.server_settings_window_open = true;
                         }
                     });
                     ui.add_space(16.0);
                 }
 
-                egui::widgets::global_theme_preference_buttons(ui);
+                let current = ui.ctx().options(|options| options.theme_preference);
+                for (theme, label) in [
+                    (
+                        egui::ThemePreference::System,
+                        language.text("System", "Systemowy"),
+                    ),
+                    (
+                        egui::ThemePreference::Light,
+                        language.text("Light", "Jasny"),
+                    ),
+                    (egui::ThemePreference::Dark, language.text("Dark", "Ciemny")),
+                ] {
+                    if ui.selectable_label(current == theme, label).clicked() {
+                        ui.ctx().set_theme(theme);
+                    }
+                }
             });
         });
 
+        let language = self.language;
         egui::CentralPanel::default().show(ui, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.heading("METAR Tool");
@@ -212,11 +259,11 @@ impl eframe::App for App {
                 ui.text_edit_singleline(&mut self.metar.location);
             });
             ui.horizontal(|ui| {
-                ui.label("Day:");
+                ui.label(language.text("Day:", "Dzień:"));
                 ui.add(egui::DragValue::new(&mut self.metar.observation_day).range(1..=31));
             });
             ui.horizontal(|ui| {
-                ui.label("Time:");
+                ui.label(language.text("Time:", "Czas UTC:"));
                 ui.add(egui::DragValue::new(&mut self.hour).range(0..=23));
                 ui.label(":");
                 ui.add(egui::DragValue::new(&mut self.minute).range(0..=59));
@@ -224,7 +271,7 @@ impl eframe::App for App {
 
             self.metar.observation_time = self.hour * 100 + self.minute;
 
-            ui.label("Wind:");
+            ui.label(language.text("Wind:", "Wiatr:"));
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.wind_vrb, "VRB");
                 ui.add_enabled(
@@ -253,7 +300,7 @@ impl eframe::App for App {
                 self.metar.wind.variance = None;
             }
             ui.horizontal(|ui| {
-                ui.label("Speed:");
+                ui.label(language.text("Speed:", "Prędkość:"));
                 ui.add(
                     egui::DragValue::new(&mut self.metar.wind.speed)
                         .suffix(" kts")
@@ -275,7 +322,7 @@ impl eframe::App for App {
             }
 
             ui.horizontal(|ui| {
-                ui.label("Visibility:");
+                ui.label(language.text("Visibility:", "Widzialność:"));
                 ui.add(
                     egui::Slider::new(
                         &mut self
@@ -290,21 +337,33 @@ impl eframe::App for App {
             });
 
             ui.horizontal(|ui| {
-                ui.label("Clouds:");
+                ui.label(language.text("Clouds:", "Chmury:"));
                 let clouds = &mut self.metar.visibility_phenomena_clouds_group.cloud_layers;
                 if let Some(clouds) = clouds {
                     for (index, cloud) in clouds.iter().enumerate() {
                         ui.label(cloud.to_string());
-                        if ui.small_button("📝").clicked() {
+                        if ui
+                            .small_button("📝")
+                            .on_hover_text(language.text("Edit", "Edytuj"))
+                            .clicked()
+                        {
                             self.cloud_editor = Some(index);
                         }
-                        if ui.small_button("🗑️").clicked() {
+                        if ui
+                            .small_button("🗑️")
+                            .on_hover_text(language.text("Remove", "Usuń"))
+                            .clicked()
+                        {
                             clouds.remove(index);
                             break;
                         }
                     }
                 }
-                if ui.button("➕").clicked() {
+                if ui
+                    .button("➕")
+                    .on_hover_text(language.text("Add", "Dodaj"))
+                    .clicked()
+                {
                     let clouds = self
                         .metar
                         .visibility_phenomena_clouds_group
@@ -320,21 +379,33 @@ impl eframe::App for App {
             });
 
             ui.horizontal(|ui| {
-                ui.label("Phenomenon:");
+                ui.label(language.text("Phenomenon:", "Zjawiska:"));
                 let phenomena = &mut self.metar.visibility_phenomena_clouds_group.phenomena;
                 if let Some(phenomena) = phenomena {
                     for (index, phenomenon) in phenomena.iter().enumerate() {
                         ui.label(phenomenon.to_string());
-                        if ui.small_button("📝").clicked() {
+                        if ui
+                            .small_button("📝")
+                            .on_hover_text(language.text("Edit", "Edytuj"))
+                            .clicked()
+                        {
                             self.phenomenon_editor = Some(index);
                         }
-                        if ui.small_button("🗑️").clicked() {
+                        if ui
+                            .small_button("🗑️")
+                            .on_hover_text(language.text("Remove", "Usuń"))
+                            .clicked()
+                        {
                             phenomena.remove(index);
                             break;
                         }
                     }
                 }
-                if ui.button("➕").clicked() {
+                if ui
+                    .button("➕")
+                    .on_hover_text(language.text("Add", "Dodaj"))
+                    .clicked()
+                {
                     let items = self
                         .metar
                         .visibility_phenomena_clouds_group
@@ -351,7 +422,8 @@ impl eframe::App for App {
 
             if let Some(index) = self.cloud_editor {
                 let mut open = true;
-                egui::Window::new("Edit cloud layer")
+                egui::Window::new(language.text("Edit cloud layer", "Edycja warstwy chmur"))
+                    .id(egui::Id::unique("cloud_editor"))
                     .open(&mut open)
                     .show(ui.ctx(), |ui| {
                         if let Some(cloud) = self
@@ -362,7 +434,7 @@ impl eframe::App for App {
                             .and_then(|v| v.get_mut(index))
                         {
                             ui.horizontal(|ui| {
-                                ui.label("Coverage");
+                                ui.label(language.text("Coverage", "Zachmurzenie"));
                                 egui::ComboBox::from_id_salt("cloud_coverage")
                                     .selected_text(cloud.coverage.to_string())
                                     .show_ui(ui, |ui| {
@@ -390,7 +462,7 @@ impl eframe::App for App {
                                     });
                             });
                             ui.horizontal(|ui| {
-                                ui.label("Height: ");
+                                ui.label(language.text("Height: ", "Wysokość: "));
                                 ui.add(
                                     egui::DragValue::new(&mut cloud.height)
                                         .range(0..=60000)
@@ -405,10 +477,20 @@ impl eframe::App for App {
                                 .map(ToString::to_string)
                                 .unwrap_or_else(|| "None".into());
                             egui::ComboBox::from_id_salt("cloud_type")
-                                .selected_text(&kind)
+                                .selected_text(
+                                    language
+                                        .text(&kind, if kind == "None" { "Brak" } else { &kind }),
+                                )
                                 .show_ui(ui, |ui| {
                                     for value in ["None", "CB", "TCU"] {
-                                        ui.selectable_value(&mut kind, value.to_string(), value);
+                                        ui.selectable_value(
+                                            &mut kind,
+                                            value.to_string(),
+                                            language.text(
+                                                value,
+                                                if value == "None" { "Brak" } else { value },
+                                            ),
+                                        );
                                     }
                                 });
                             cloud.cloud_type = match kind.as_str() {
@@ -424,7 +506,8 @@ impl eframe::App for App {
             }
             if let Some(index) = self.phenomenon_editor {
                 let mut open = true;
-                egui::Window::new("Edit phenomenon")
+                egui::Window::new(language.text("Edit phenomenon", "Edycja zjawiska"))
+                    .id(egui::Id::unique("phenomenon_editor"))
                     .open(&mut open)
                     .show(ui.ctx(), |ui| {
                         if let Some(item) = self
@@ -440,13 +523,23 @@ impl eframe::App for App {
                                 .map(ToString::to_string)
                                 .unwrap_or_else(|| "None".into());
                             egui::ComboBox::from_id_salt("phenomenon_intensity")
-                                .selected_text(&intensity)
+                                .selected_text(language.text(
+                                    &intensity,
+                                    if intensity == "None" {
+                                        "Brak"
+                                    } else {
+                                        &intensity
+                                    },
+                                ))
                                 .show_ui(ui, |ui| {
                                     for value in ["None", "+", "-"] {
                                         ui.selectable_value(
                                             &mut intensity,
                                             value.to_string(),
-                                            value,
+                                            language.text(
+                                                value,
+                                                if value == "None" { "Brak" } else { value },
+                                            ),
                                         );
                                     }
                                 });
@@ -498,7 +591,14 @@ impl eframe::App for App {
                                 .map(ToString::to_string)
                                 .unwrap_or_else(|| "None".into());
                             egui::ComboBox::from_id_salt("phenomenon_modifier")
-                                .selected_text(&modifier)
+                                .selected_text(language.text(
+                                    &modifier,
+                                    if modifier == "None" {
+                                        "Brak"
+                                    } else {
+                                        &modifier
+                                    },
+                                ))
                                 .show_ui(ui, |ui| {
                                     for value in [
                                         "None", "MI", "BC", "PR", "DR", "BL", "SH", "TS", "FZ",
@@ -507,7 +607,10 @@ impl eframe::App for App {
                                         ui.selectable_value(
                                             &mut modifier,
                                             value.to_string(),
-                                            value,
+                                            language.text(
+                                                value,
+                                                if value == "None" { "Brak" } else { value },
+                                            ),
                                         );
                                     }
                                 });
@@ -531,13 +634,13 @@ impl eframe::App for App {
             }
 
             ui.horizontal(|ui| {
-                ui.label("Temperature:");
+                ui.label(language.text("Temperature:", "Temperatura:"));
                 ui.add(
                     egui::DragValue::new(&mut self.metar.temperature)
                         .suffix(" °C")
                         .range(-50..=50),
                 );
-                ui.label("Dew Point:");
+                ui.label(language.text("Dew Point:", "Punkt rosy:"));
                 ui.add(
                     egui::DragValue::new(&mut self.metar.dew_point)
                         .suffix(" °C")
@@ -555,29 +658,53 @@ impl eframe::App for App {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("Send to servers").clicked() {
-                    let report = selected_report(&self.metar, self.overwrite, &self.overwrite_metar);
-                    let servers: Vec<_> = self.servers.iter()
+                if ui
+                    .button(language.text("Send to servers", "Wyślij do serwerów"))
+                    .clicked()
+                {
+                    let report =
+                        selected_report(&self.metar, self.overwrite, &self.overwrite_metar);
+                    let servers: Vec<_> = self
+                        .servers
+                        .iter()
                         .enumerate()
                         .filter(|(_, server)| !server.url.trim().is_empty())
                         .map(|(index, server)| {
                             let name = if server.name.trim().is_empty() {
-                                format!("Server {}", index + 1)
+                                localized!(language, "Server {}", "Serwer {}", index + 1)
                             } else {
                                 server.name.trim().to_owned()
                             };
-                            (name, server.url.trim().to_owned(), server.api_key.trim().to_owned())
+                            (
+                                name,
+                                server.url.trim().to_owned(),
+                                server.api_key.trim().to_owned(),
+                            )
                         })
                         .collect();
                     if servers.is_empty() {
-                        self.server_results.lock().unwrap().push("Add at least one server URL in Settings → Servers.".into());
+                        self.server_results.lock().unwrap().push(
+                            language
+                                .text(
+                                    "Add at least one server URL in Settings → Servers.",
+                                    "Dodaj co najmniej jeden adres serwera w Ustawienia → Serwery.",
+                                )
+                                .into(),
+                        );
                     } else if report.is_empty() {
-                        self.server_results.lock().unwrap().push("METAR is empty; nothing was sent.".into());
+                        self.server_results.lock().unwrap().push(
+                            language
+                                .text(
+                                    "METAR is empty; nothing was sent.",
+                                    "Depesza METAR jest pusta; nic nie wysłano.",
+                                )
+                                .into(),
+                        );
                     } else {
                         self.server_results.lock().unwrap().clear();
                         let results = Arc::clone(&self.server_results);
                         let context = ui.ctx().clone();
-                        send_to_servers(servers, report, move |result| {
+                        send_to_servers(servers, report, language, move |result| {
                             if let Ok(mut results) = results.lock() {
                                 results.push(result);
                             }
@@ -593,7 +720,11 @@ impl eframe::App for App {
             });
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("📋").clicked() {
+                if ui
+                    .button("📋")
+                    .on_hover_text(language.text("Copy report", "Kopiuj depeszę"))
+                    .clicked()
+                {
                     ui.ctx().copy_text(selected_report(
                         &self.metar,
                         self.overwrite,
@@ -607,12 +738,12 @@ impl eframe::App for App {
                 ui.vertical(|ui| {
                     ui.label(self.metar.to_string());
                     ui.horizontal(|ui| {
-                        ui.checkbox(&mut self.overwrite, "Overwrite");
+                        ui.checkbox(&mut self.overwrite, language.text("Overwrite", "Nadpisz"));
                         ui.add_enabled(
                             self.overwrite,
                             egui::TextEdit::singleline(&mut self.overwrite_metar)
                                 .hint_text("METAR")
-                                .clip_text(false)
+                                .clip_text(false),
                         );
                     });
                 });
@@ -620,16 +751,25 @@ impl eframe::App for App {
             ui.separator();
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                egui::warn_if_debug_build(ui);
+                if cfg!(debug_assertions) {
+                    ui.colored_label(
+                        ui.visuals().warn_fg_color,
+                        language.text("Debug build", "Wersja debugowania"),
+                    );
+                }
             });
         });
 
-        egui::Window::new("Sound settings")
+        egui::Window::new(language.text("Sound settings", "Ustawienia dźwięku"))
+            .id(egui::Id::unique("sound_settings"))
             .open(&mut self.sound_settings_window_open)
             .show(ui.ctx(), |ui| {
                 let mut changed = false;
                 changed |= ui
-                    .checkbox(&mut self.reminder_config.enabled, "Enabled")
+                    .checkbox(
+                        &mut self.reminder_config.enabled,
+                        language.text("Enabled", "Włączone"),
+                    )
                     .changed();
                 changed |= ui
                     .add(
@@ -638,33 +778,36 @@ impl eframe::App for App {
                             &mut self.reminder_config.end_hour,
                             0..=23,
                         )
-                        .text("Active hours"),
+                        .text(language.text("Active hours", "Godziny aktywności")),
                     )
                     .changed();
                 if changed {
                     self.reminder.update_config(self.reminder_config);
                 }
-                if ui.button("Test sound").clicked() {
+                if ui
+                    .button(language.text("Test sound", "Test dźwięku"))
+                    .clicked()
+                {
                     self.reminder.test_sound();
                 }
             });
 
-        egui::Window::new("Server settings")
+        egui::Window::new(language.text("Server settings", "Ustawienia serwerów")).id(egui::Id::unique("server_settings"))
             .open(&mut self.server_settings_window_open)
             .show(ui.ctx(), |ui| {
-                ui.label("JSON config file (loading replaces the current server list):");
+                ui.label(language.text("JSON config file (loading replaces the current server list):", "Plik konfiguracji JSON (wczytanie zastępuje bieżącą listę serwerów):"));
                 ui.horizontal(|ui| {
                     ui.add(
                         egui::TextEdit::singleline(&mut self.server_config_path)
-                            .hint_text("Path to servers.json"),
+                            .hint_text(language.text("Path to servers.json", "Ścieżka do servers.json")),
                     );
-                    if ui.button("Load config").clicked() {
+                    if ui.button(language.text("Load config", "Wczytaj konfigurację")).clicked() {
                         let result = std::fs::read_to_string(self.server_config_path.trim())
-                            .map_err(|error| format!("Could not read config file: {error}"))
-                            .and_then(|contents| parse_server_config(&contents));
+                            .map_err(|error| localized!(language, "Could not read config file: {error}", "Nie można odczytać pliku konfiguracji: {error}"))
+                            .and_then(|contents| parse_server_config(&contents, language));
                         match result {
                             Ok(servers) => {
-                                self.server_config_status = format!("Loaded {} server(s).", servers.len());
+                                self.server_config_status = localized!(language, "Loaded {} server(s).", "Wczytano serwery: {}.", servers.len());
                                 self.servers = servers;
                                 if let Ok(mut results) = self.server_results.lock() {
                                     results.clear();
@@ -673,39 +816,39 @@ impl eframe::App for App {
                             Err(error) => self.server_config_status = error,
                         }
                     }
-                    if ui.button("Export config").clicked() {
+                    if ui.button(language.text("Export config", "Eksportuj konfigurację")).clicked() {
                         let result = serde_json::to_string_pretty(&ServerConfigExport {
                             servers: &self.servers,
                         })
-                        .map_err(|error| format!("Could not serialize config: {error}"))
+                        .map_err(|error| localized!(language, "Could not serialize config: {error}", "Nie można zakodować konfiguracji: {error}"))
                         .and_then(|contents| {
                             std::fs::write(self.server_config_path.trim(), contents)
-                                .map_err(|error| format!("Could not write config file: {error}"))
+                                .map_err(|error| localized!(language, "Could not write config file: {error}", "Nie można zapisać pliku konfiguracji: {error}"))
                         });
                         self.server_config_status = match result {
-                            Ok(()) => format!("Exported {} server(s).", self.servers.len()),
+                            Ok(()) => localized!(language, "Exported {} server(s).", "Wyeksportowano serwery: {}.", self.servers.len()),
                             Err(error) => error,
                         };
                     }
                 });
-                ui.label("Export includes API keys and overwrites the file at the specified path.");
+                ui.label(language.text("Export includes API keys and overwrites the file at the specified path.", "Eksport zawiera klucze API i nadpisuje plik pod wskazaną ścieżką."));
                 if !self.server_config_status.is_empty() {
                     ui.label(&self.server_config_status);
                 }
                 ui.separator();
-                ui.label("List of servers to which METARs are sent:");
-                ui.label("Each URL receives an HTTP POST with the report as plain text.");
+                ui.label(language.text("List of servers to which METARs are sent:", "Lista serwerów odbierających depesze METAR:"));
+                ui.label(language.text("Each URL receives an HTTP POST with the report as plain text.", "Pod każdy adres URL wysyłane jest żądanie HTTP POST z depeszą jako zwykłym tekstem."));
                 let mut remove = None;
                 for (index, server) in self.servers.iter_mut().enumerate() {
                     ui.horizontal(|ui| {
-                        ui.add(egui::TextEdit::singleline(&mut server.name).hint_text("Name").desired_width(120.0));
+                        ui.add(egui::TextEdit::singleline(&mut server.name).hint_text(language.text("Name", "Nazwa")).desired_width(120.0));
                         ui.add(egui::TextEdit::singleline(&mut server.url).hint_text("https://server.example/metar"));
                         ui.add(
                             egui::TextEdit::singleline(&mut server.api_key)
                                 .password(true)
-                                .hint_text("Optional API key"),
+                                .hint_text(language.text("Optional API key", "Opcjonalny klucz API")),
                         );
-                        if ui.button("Remove").clicked() {
+                        if ui.button(language.text("Remove", "Usuń")).clicked() {
                             remove = Some(index);
                         }
                     });
@@ -713,7 +856,7 @@ impl eframe::App for App {
                 if let Some(index) = remove {
                     self.servers.remove(index);
                 }
-                if ui.button("Add server").clicked() {
+                if ui.button(language.text("Add server", "Dodaj serwer")).clicked() {
                     self.servers.push(ServerConfig::default());
                 }
             });

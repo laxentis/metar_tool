@@ -37,6 +37,8 @@ The application is a native eframe/egui desktop program. Its reminder sound is e
 
 ## Using the editor
 
+Choose **Settings → Language → Polski** to switch the interface to Polish. To return to English, choose **Ustawienia → Język → English**. The change takes effect immediately and is saved with the application settings. METAR codes, report contents, and messages received from servers are not translated.
+
 Fill in the observation details in the main window. The generated METAR appears at the bottom; use the clipboard button beside it to copy the report. The **Overwrite** option enables editing the displayed text directly.
 
 When **Overwrite** is enabled, both the clipboard button and **Send to servers** use the manually edited report, with leading and trailing whitespace removed. When it is disabled, both use the report generated from the form. The preview above the overwrite field always shows the generated report.

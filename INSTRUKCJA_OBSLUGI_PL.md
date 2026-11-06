@@ -1,6 +1,24 @@
 # METAR Tool — instrukcja obsługi
 
-Instrukcja dotyczy wersji 1.0.0. Nazwy pól i przycisków podano tak, jak występują w angielskim interfejsie programu.
+Instrukcja dotyczy wersji 1.0.0. Nazwy pól i przycisków w dalszej części podano dla angielskiego interfejsu; program udostępnia również polskie odpowiedniki.
+
+## Zmiana języka interfejsu
+
+Wybierz **Settings → Language → Polski**, aby włączyć polski interfejs. Zmiana działa od razu i jest zapamiętywana po zamknięciu programu. Aby wrócić do wersji angielskiej, wybierz **Ustawienia → Język → English**.
+
+Tłumaczenie obejmuje menu, formularz, okna ustawień i komunikaty aplikacji. Kody METAR, treść depeszy i komunikaty otrzymane z serwerów pozostają w oryginale.
+
+| Nazwa angielska | Nazwa polska |
+| --- | --- |
+| Settings / Sound / Servers | Ustawienia / Dźwięk / Serwery |
+| Day / Time | Dzień / Czas UTC |
+| Wind / Speed / Visibility | Wiatr / Prędkość / Widzialność |
+| Clouds / Phenomenon | Chmury / Zjawiska |
+| Temperature / Dew Point | Temperatura / Punkt rosy |
+| Overwrite / Send to servers | Nadpisz / Wyślij do serwerów |
+| Load config / Export config | Wczytaj konfigurację / Eksportuj konfigurację |
+| Enabled / Active hours / Test sound | Włączone / Godziny aktywności / Test dźwięku |
+| None | Brak |
 
 ## 1. Do czego służy program
 
