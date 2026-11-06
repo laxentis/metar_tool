@@ -44,9 +44,8 @@ impl fmt::Display for Runway {
     }
 }
 
-#[allow(dead_code)]
 /// Kind of aviation observation report, including corrected reports.
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum MessageType {
     Metar,
     MetarCor,
@@ -523,7 +522,7 @@ impl Display for PressureSetting {
 /// time is represented as the day of the month and UTC time in `HHMM` form.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct ObservationMessage {
-    message_type: MessageType,
+    pub(crate) message_type: MessageType,
     pub location: String,
     pub observation_day: u32,
     pub observation_time: u32,

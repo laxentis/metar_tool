@@ -7,6 +7,7 @@ A small desktop application for composing METAR observation reports. It provides
 
 ## Features
 
+- Choose METAR, METAR COR, SPECI, or SPECI COR as the message type.
 - Edit the station ICAO code, observation day and time, wind, visibility, cloud layers, present weather, temperature, dew point, and pressure.
 - Configure variable wind direction, gusts, cloud layers, and weather phenomena.
 - Preview the formatted report and copy it to the clipboard.

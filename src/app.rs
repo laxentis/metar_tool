@@ -1,4 +1,4 @@
-use crate::metar::ObservationMessage;
+use crate::metar::{MessageType, ObservationMessage};
 use crate::reminder::{ReminderConfig, ReminderService};
 use crate::server::send_to_servers;
 use eframe::{Frame, Storage};
@@ -111,6 +111,20 @@ impl eframe::App for App {
         egui::CentralPanel::default().show(ui, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.heading("METAR Tool");
+
+            egui::ComboBox::from_id_salt("message_type")
+                .selected_text(self.metar.message_type.to_string())
+                .show_ui(ui, |ui| {
+                    for message_type in [
+                        MessageType::Metar,
+                        MessageType::MetarCor,
+                        MessageType::Speci,
+                        MessageType::SpeciCor,
+                    ] {
+                        let label = message_type.to_string();
+                        ui.selectable_value(&mut self.metar.message_type, message_type, label);
+                    }
+                });
 
             ui.horizontal(|ui| {
                 ui.label("ICAO: ");
