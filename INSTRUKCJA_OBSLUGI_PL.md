@@ -30,6 +30,8 @@ Do przygotowania i kopiowania depeszy nie jest wymagane połączenie z siecią. 
 
 Program zamkniesz przyciskiem zamknięcia okna lub poleceniem **File → Quit**. Aplikacja zapisuje stan i ustawienia oraz odtwarza je przy kolejnym uruchomieniu. Przywrócone dane obserwacji mogą być nieaktualne.
 
+<img width="602" height="532" alt="Interfejs" src="https://github.com/user-attachments/assets/641c96be-0330-4c22-8a5c-e18bea5f69cc" />
+
 ## 3. Przygotowanie depeszy
 
 ### Typ, stacja i termin obserwacji
@@ -63,6 +65,8 @@ Przy 10 000 m i pustych listach chmur oraz zjawisk program może automatycznie w
 
 ### Chmury — Clouds
 
+<img width="602" height="532" alt="Cloud edit" src="https://github.com/user-attachments/assets/3d51cb68-1dd2-4608-8f27-05a8245bb2b3" />
+
 1. Przy **Clouds** kliknij przycisk z plusem.
 2. W oknie **Edit cloud layer** wybierz pokrycie nieba: `FEW`, `SCT`, `BKN` lub `OVC`.
 3. W polu **Height** wpisz wysokość podstawy w stopach (`ft`), np. `2000`. W depeszy zostanie ona zapisana w setkach stóp, np. `BKN020`.
@@ -72,6 +76,8 @@ Przy 10 000 m i pustych listach chmur oraz zjawisk program może automatycznie w
 Powtórz te czynności dla kolejnych warstw. Przycisk edycji obok warstwy otwiera jej ustawienia, a przycisk kosza usuwa ją z listy. Warstwy pojawiają się w depeszy w kolejności dodawania; dodawaj je w wymaganej kolejności.
 
 ### Zjawiska — Phenomenon
+
+<img width="602" height="532" alt="Edit phenomenon" src="https://github.com/user-attachments/assets/e2d03c0f-860c-46be-8c57-1236bc41942f" />
 
 1. Przy **Phenomenon** kliknij przycisk z plusem.
 2. W oknie **Edit phenomenon** wybierz natężenie: **None** — bez znaku, **+** albo **−**.
@@ -110,6 +116,8 @@ Aby ręcznie zmienić tekst:
 Podgląd nad polem ręcznej edycji nadal pokazuje wynik formularza. Zmiany w formularzu przy aktywnym **Overwrite** nie aktualizują ręcznie edytowanego tekstu. Wyłączenie tej opcji powoduje ponowne zastąpienie zawartości pola wynikiem formularza.
 
 ## 5. Konfiguracja serwerów
+
+<img width="602" height="532" alt="Server settings" src="https://github.com/user-attachments/assets/645ce7bd-0f08-4908-9ddd-ca1560ef696a" />
 
 ### Dodawanie serwera
 
@@ -177,6 +185,8 @@ Program wysyła tekst żądaniem HTTP POST, kolejno do wszystkich skonfigurowany
 Program nie ponawia wysyłki automatycznie. Kolejne kliknięcie **Send to servers** wysyła depeszę ponownie do wszystkich pozycji z niepustym adresem.
 
 ## 7. Przypomnienia dźwiękowe
+
+<img width="602" height="532" alt="Sound settings" src="https://github.com/user-attachments/assets/b80afe31-ab98-4a35-8467-b95d13be2bff" />
 
 1. Otwórz **Settings → Sound**.
 2. Zaznacz **Enabled**, aby włączyć przypomnienia, lub odznacz, aby je wyłączyć.
