@@ -5,6 +5,14 @@ use eframe::{Frame, Storage};
 use egui::Ui;
 use std::sync::{Arc, Mutex};
 
+fn selected_report(metar: &ObservationMessage, overwrite: bool, overwrite_metar: &str) -> String {
+    if overwrite {
+        overwrite_metar.trim().to_owned()
+    } else {
+        metar.to_string()
+    }
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Default)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
@@ -16,7 +24,18 @@ struct ServerConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_server_config;
+    use super::{parse_server_config, selected_report};
+    use crate::metar::ObservationMessage;
+
+    #[test]
+    fn report_selection_respects_overwrite() {
+        let metar = ObservationMessage::default();
+        let edited = "METAR EPBC 061200Z 28005KT 5000 NSC M05/M12 Q1013=";
+        assert_eq!(selected_report(&metar, false, edited), metar.to_string());
+        assert_eq!(selected_report(&metar, true, edited), edited);
+        assert_eq!(selected_report(&metar, true, &format!("  {edited}\n")), edited);
+        assert_eq!(selected_report(&metar, true, "  "), "");
+    }
 
     #[test]
     fn loads_servers_with_optional_api_keys() {
@@ -537,11 +556,7 @@ impl eframe::App for App {
             ui.separator();
             ui.horizontal(|ui| {
                 if ui.button("Send to servers").clicked() {
-                    let report = if self.overwrite {
-                        self.overwrite_metar.trim().to_owned()
-                    } else {
-                        self.metar.to_string()
-                    };
+                    let report = selected_report(&self.metar, self.overwrite, &self.overwrite_metar);
                     let servers: Vec<_> = self.servers.iter()
                         .enumerate()
                         .filter(|(_, server)| !server.url.trim().is_empty())
@@ -579,7 +594,11 @@ impl eframe::App for App {
             ui.separator();
             ui.horizontal(|ui| {
                 if ui.button("📋").clicked() {
-                    ui.ctx().copy_text(self.metar.to_string());
+                    ui.ctx().copy_text(selected_report(
+                        &self.metar,
+                        self.overwrite,
+                        &self.overwrite_metar,
+                    ));
                 };
                 ui.add_space(10.0);
                 if !self.overwrite {

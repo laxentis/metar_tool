@@ -580,10 +580,12 @@ impl Display for ObservationMessage {
         w.push_str(format!(" {}", self.wind).as_str());
         w.push_str(
             format!(
-                " {} {:02}/{:02} {}=",
+                " {} {}{:02}/{}{:02} {}=",
                 self.visibility_phenomena_clouds_group.to_string(),
-                self.temperature,
-                self.dew_point,
+                if self.temperature < 0 { "M" } else { "" },
+                self.temperature.unsigned_abs(),
+                if self.dew_point < 0 { "M" } else { "" },
+                self.dew_point.unsigned_abs(),
                 self.pressure.to_string()
             )
             .as_str(),
@@ -600,6 +602,23 @@ mod tests {
     use crate::metar::RunwayVisualRangeSuffix::*;
     use crate::metar::SpeedUnits::*;
     use crate::metar::*;
+
+    #[test]
+    fn temperature_and_dew_point_use_metar_sign_and_padding() {
+        for (temperature, dew_point, group) in [
+            (-5, -12, "M05/M12"),
+            (3, -5, "03/M05"),
+            (-1, 0, "M01/00"),
+            (0, 0, "00/00"),
+            (15, 5, "15/05"),
+            (-50, -50, "M50/M50"),
+        ] {
+            let mut report = ObservationMessage::default();
+            report.temperature = temperature;
+            report.dew_point = dew_point;
+            assert!(report.to_string().ends_with(&format!(" {group} Q1013=")));
+        }
+    }
 
     #[test]
     fn simple_runway() {

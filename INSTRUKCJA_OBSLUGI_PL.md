@@ -91,13 +91,13 @@ Możesz dodać kilka pozycji. Do zmiany lub usunięcia pozycji służą przycisk
 | **Dew Point** | Temperatura punktu rosy w °C | od −50 do 50 |
 | **QNH** | Ciśnienie w hPa | od 800 do 1200 |
 
-QNH jest zapisywane bez części ułamkowej, np. `1013,25` daje `Q1013`. Przy temperaturach ujemnych sprawdź zapis w depeszy — ograniczenie obecnej wersji opisano w rozdziale 9.
+QNH jest zapisywane bez części ułamkowej, np. `1013,25` daje `Q1013`. Temperatury ujemne oraz ujemny punkt rosy są zapisywane z literą `M` zamiast minusa, np. −5°C i −12°C dają grupę `M05/M12`. Dla 3°C i punktu rosy −5°C wynik to `03/M05`, a dla dwóch wartości zerowych — `00/00`.
 
 ## 4. Podgląd, kopiowanie i ręczna edycja
 
 Tekst depeszy jest widoczny na dole okna i aktualizuje się po zmianach w formularzu. Program dodaje na końcu znak `=`.
 
-Kliknij przycisk z ikoną schowka, aby skopiować depeszę utworzoną z formularza.
+Kliknij przycisk z ikoną schowka, aby skopiować depeszę. Przy wyłączonym **Overwrite** kopiowany jest wynik formularza, a przy włączonym — tekst z pola ręcznej edycji.
 
 Aby ręcznie zmienić tekst:
 
@@ -105,7 +105,7 @@ Aby ręcznie zmienić tekst:
 2. Wprowadź poprawki w aktywnym polu tekstowym obok tej opcji.
 3. Sprawdź cały tekst, w tym stację, termin i znak końcowy.
 
-**Przy włączonym Overwrite przycisk Send to servers wysyła tekst z pola ręcznej edycji. Przycisk schowka nadal kopiuje tekst utworzony z formularza.** Aby skopiować ręcznie zmienioną depeszę, zaznacz tekst w polu edycji i użyj `Ctrl+C`.
+**Przy włączonym Overwrite zarówno przycisk Send to servers, jak i przycisk schowka korzystają z tekstu w polu ręcznej edycji.** Spacje i inne białe znaki na początku i końcu tego tekstu są usuwane przy kopiowaniu oraz wysyłaniu. Aby skopiować ręcznie poprawioną depeszę, pozostaw **Overwrite** włączone i kliknij ikonę schowka.
 
 Podgląd nad polem ręcznej edycji nadal pokazuje wynik formularza. Zmiany w formularzu przy aktywnym **Overwrite** nie aktualizują ręcznie edytowanego tekstu. Wyłączenie tej opcji powoduje ponowne zastąpienie zawartości pola wynikiem formularza.
 
@@ -215,9 +215,7 @@ Aby wysłać ten wynik, wyłącz **Overwrite** i kliknij **Send to servers** po 
 
 Poniższe uwagi wynikają z działania wersji 1.0.0 i są istotne przy sprawdzaniu gotowej depeszy:
 
-- **Temperatury ujemne:** generator używa znaku minus zamiast oznaczenia `M`. W razie potrzeby popraw grupę temperatur w trybie **Overwrite** przed wysłaniem.
 - **Automatyczne CAVOK:** przy widzialności 10 000 m, jeśli lista chmur nie została jeszcze utworzona, program może wyświetlić `CAVOK` również po dodaniu zjawiska pogodowego, pomijając je w wyniku. Sprawdź grupę widzialności i zjawisk; w razie potrzeby popraw tekst w **Overwrite**.
-- **Kopiowanie ręcznych poprawek:** ikona schowka zawsze kopiuje wynik formularza. Tekst z **Overwrite** kopiuj bezpośrednio z pola edycji.
 - **Dodatkowe grupy:** formularz nie udostępnia osobnych pól m.in. dla RVR, widzialności kierunkowej, AUTO ani TREND. Wymagane uzupełnienia można wpisać ręcznie w **Overwrite**.
 - **Przypomnienia po ponownym uruchomieniu:** zapisane ustawienia dźwięku są odtwarzane w oknie, ale usługa przypomnień startuje z wartościami domyślnymi. Aby przekazać jej ustawienia widoczne w oknie, zmień **Enabled** lub **Active hours**; możesz np. wyłączyć i ponownie włączyć **Enabled**.
 
