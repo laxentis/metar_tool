@@ -43,6 +43,25 @@ Configure one or more HTTP(S) endpoints from **Settings → Servers**. Each endp
 
 Open **Sound notifications** to enable or disable hourly reminders, set their active hours, and play a test sound. Reminder playback requires a usable default audio output device.
 
+### Loading and exporting server configurations
+
+In **Settings → Servers**, enter the path to a JSON config file and click **Load config**. Relative paths are resolved from the application's working directory. A successful load replaces the current server list and is saved with the application settings. If the file cannot be read or any entry is invalid, the current list is preserved.
+
+```json
+{
+  "servers": [
+    { "name": "Primary", "url": "https://server.example/metar", "api_key": "your-api-key" },
+    { "name": "Local", "url": "http://localhost:8080/metar" }
+  ]
+}
+```
+
+Each server requires an HTTP(S) `url`. The `api_key` field is optional; omit it or leave it empty to send no API key. An empty `servers` list clears the configured servers. Keep files containing real API keys private and out of version control.
+
+Set each server's `name` in the config file or the **Name** field in server settings. Send-result notifications identify servers by name. Older configurations without names remain supported; blank or missing names appear as **Server 1**, **Server 2**, etc. Exports include names along with URLs and API keys.
+
+To export the current server list, enter a destination file path in **Settings → Servers** and click **Export config**. The export uses the same JSON format, includes API keys, and overwrites any existing file at that path.
+
 ## Project layout
 
 - `src/app.rs` — desktop interface and persisted application state.

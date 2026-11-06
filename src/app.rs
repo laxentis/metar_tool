@@ -7,9 +7,66 @@ use std::sync::{Arc, Mutex};
 
 #[derive(serde::Deserialize, serde::Serialize, Default)]
 #[serde(default)]
+#[serde(deny_unknown_fields)]
 struct ServerConfig {
+    name: String,
     url: String,
     api_key: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_server_config;
+
+    #[test]
+    fn loads_servers_with_optional_api_keys() {
+        let servers = parse_server_config(r#"{"servers":[{"url":"https://example.com/metar","api_key":"secret"},{"url":"http://localhost:8080"}]}"#).unwrap();
+        assert_eq!(servers.len(), 2);
+        assert_eq!(servers[0].url, "https://example.com/metar");
+        assert_eq!(servers[0].api_key, "secret");
+        assert!(servers[1].api_key.is_empty());
+    }
+
+    #[test]
+    fn rejects_invalid_configs_without_exposing_credentials() {
+        for contents in [
+            r#"{"servers":[{"url":"https://example.com"},{"url":"ftp://example.com","api_key":"secret"}]}"#,
+            r#"{"servers":[{"api_key":"secret"}]}"#,
+            r#"{"servers":[{"url":"https://example.com","api_key":123456}]}"#,
+            r#"{"servers":[{"url":"https://example.com","api_ke":"secret"}]}"#,
+            r#"{}"#,
+        ] {
+            let error = parse_server_config(contents).err().expect("invalid config");
+            assert!(!error.contains("secret"));
+            assert!(!error.contains("123456"));
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ServerConfigFile {
+    servers: Vec<ServerConfig>,
+}
+
+#[derive(serde::Serialize)]
+struct ServerConfigExport<'a> {
+    servers: &'a [ServerConfig],
+}
+
+fn parse_server_config(contents: &str) -> Result<Vec<ServerConfig>, String> {
+    let config: ServerConfigFile = serde_json::from_str(contents).map_err(|error| {
+        format!("Invalid server config at line {}, column {}. Expected a JSON object with a servers list containing url, optional name and optional api_key fields.", error.line(), error.column())
+    })?;
+    for (index, server) in config.servers.iter().enumerate() {
+        let valid = reqwest::Url::parse(server.url.trim())
+            .map(|url| matches!(url.scheme(), "http" | "https") && url.host_str().is_some())
+            .unwrap_or(false);
+        if !valid {
+            return Err(format!("Server {} must have a valid HTTP(S) URL.", index + 1));
+        }
+    }
+    Ok(config.servers)
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -32,6 +89,9 @@ pub struct App {
     sound_settings_window_open: bool,
     server_settings_window_open: bool,
     servers: Vec<ServerConfig>,
+    server_config_path: String,
+    #[serde(skip)]
+    server_config_status: String,
     #[serde(skip)]
     server_results: Arc<Mutex<Vec<String>>>,
     cloud_editor: Option<usize>,
@@ -61,6 +121,8 @@ impl Default for App {
             sound_settings_window_open: false,
             server_settings_window_open: false,
             servers: Vec::new(),
+            server_config_path: String::new(),
+            server_config_status: String::new(),
             server_results: Arc::new(Mutex::new(Vec::new())),
             cloud_editor: None,
             phenomenon_editor: None,
@@ -481,8 +543,16 @@ impl eframe::App for App {
                         self.metar.to_string()
                     };
                     let servers: Vec<_> = self.servers.iter()
-                        .filter(|server| !server.url.trim().is_empty())
-                        .map(|server| (server.url.trim().to_owned(), server.api_key.trim().to_owned()))
+                        .enumerate()
+                        .filter(|(_, server)| !server.url.trim().is_empty())
+                        .map(|(index, server)| {
+                            let name = if server.name.trim().is_empty() {
+                                format!("Server {}", index + 1)
+                            } else {
+                                server.name.trim().to_owned()
+                            };
+                            (name, server.url.trim().to_owned(), server.api_key.trim().to_owned())
+                        })
                         .collect();
                     if servers.is_empty() {
                         self.server_results.lock().unwrap().push("Add at least one server URL in Settings → Servers.".into());
@@ -563,11 +633,53 @@ impl eframe::App for App {
         egui::Window::new("Server settings")
             .open(&mut self.server_settings_window_open)
             .show(ui.ctx(), |ui| {
+                ui.label("JSON config file (loading replaces the current server list):");
+                ui.horizontal(|ui| {
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.server_config_path)
+                            .hint_text("Path to servers.json"),
+                    );
+                    if ui.button("Load config").clicked() {
+                        let result = std::fs::read_to_string(self.server_config_path.trim())
+                            .map_err(|error| format!("Could not read config file: {error}"))
+                            .and_then(|contents| parse_server_config(&contents));
+                        match result {
+                            Ok(servers) => {
+                                self.server_config_status = format!("Loaded {} server(s).", servers.len());
+                                self.servers = servers;
+                                if let Ok(mut results) = self.server_results.lock() {
+                                    results.clear();
+                                }
+                            }
+                            Err(error) => self.server_config_status = error,
+                        }
+                    }
+                    if ui.button("Export config").clicked() {
+                        let result = serde_json::to_string_pretty(&ServerConfigExport {
+                            servers: &self.servers,
+                        })
+                        .map_err(|error| format!("Could not serialize config: {error}"))
+                        .and_then(|contents| {
+                            std::fs::write(self.server_config_path.trim(), contents)
+                                .map_err(|error| format!("Could not write config file: {error}"))
+                        });
+                        self.server_config_status = match result {
+                            Ok(()) => format!("Exported {} server(s).", self.servers.len()),
+                            Err(error) => error,
+                        };
+                    }
+                });
+                ui.label("Export includes API keys and overwrites the file at the specified path.");
+                if !self.server_config_status.is_empty() {
+                    ui.label(&self.server_config_status);
+                }
+                ui.separator();
                 ui.label("List of servers to which METARs are sent:");
                 ui.label("Each URL receives an HTTP POST with the report as plain text.");
                 let mut remove = None;
                 for (index, server) in self.servers.iter_mut().enumerate() {
                     ui.horizontal(|ui| {
+                        ui.add(egui::TextEdit::singleline(&mut server.name).hint_text("Name").desired_width(120.0));
                         ui.add(egui::TextEdit::singleline(&mut server.url).hint_text("https://server.example/metar"));
                         ui.add(
                             egui::TextEdit::singleline(&mut server.api_key)

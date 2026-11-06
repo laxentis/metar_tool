@@ -90,7 +90,7 @@ fn response_body_or_default(body: &str, default: &str) -> String {
 /// POST `report` as plain text to each configured URL, reporting each result
 /// through `on_result` from the worker thread.
 pub fn send_to_servers(
-    servers: Vec<(String, String)>,
+    servers: Vec<(String, String, String)>,
     report: String,
     on_result: impl Fn(String) + Send + 'static,
 ) {
@@ -117,9 +117,9 @@ pub fn send_to_servers(
                     return;
                 }
             };
-            for (server, api_key) in servers {
+            for (server, url, api_key) in servers {
                 let mut request = client
-                    .post(&server)
+                    .post(&url)
                     .header(reqwest::header::CONTENT_TYPE, "text/plain; charset=utf-8")
                     .body(report.clone());
                 if !api_key.is_empty() {
@@ -131,12 +131,12 @@ pub fn send_to_servers(
                         match response.text().await {
                             Ok(body) => format_response(&server, status, &body),
                             Err(error) => format!(
-                                "{server}: received HTTP {status}, but could not read response: {error}"
+                                "{server}: received HTTP {status}, but could not read response: {}", error.without_url()
                             ),
                         }
                     }
                     Err(error) => format!(
-                        "{server}: no response ({error}); try again shortly"
+                        "{server}: no response ({}); try again shortly", error.without_url()
                     ),
                 };
                 on_result(result);
