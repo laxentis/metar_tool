@@ -1,6 +1,6 @@
 # METAR Tool — instrukcja obsługi
 
-Instrukcja dotyczy wersji 1.0.0. Nazwy pól i przycisków w dalszej części podano dla angielskiego interfejsu; program udostępnia również polskie odpowiedniki.
+Instrukcja dotyczy wersji 1.1.0. Nazwy pól i przycisków w dalszej części podano dla angielskiego interfejsu; program udostępnia również polskie odpowiedniki.
 
 ## Zmiana języka interfejsu
 
