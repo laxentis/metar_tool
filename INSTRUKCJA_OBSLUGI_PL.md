@@ -15,7 +15,7 @@ Tłumaczenie obejmuje menu, formularz, okna ustawień i komunikaty aplikacji. Ko
 | Wind / Speed / Visibility | Wiatr / Prędkość / Widzialność |
 | Clouds / Phenomenon | Chmury / Zjawiska |
 | Temperature / Dew Point | Temperatura / Punkt rosy |
-| Overwrite / Send to servers | Nadpisz / Wyślij do serwerów |
+| Overwrite / ✅ | Nadpisz / Wyślij i kopiuj |
 | Load config / Export config | Wczytaj konfigurację / Eksportuj konfigurację |
 | Enabled / Active hours / Test sound | Włączone / Godziny aktywności / Test dźwięku |
 | None | Brak |
@@ -129,7 +129,7 @@ Aby ręcznie zmienić tekst:
 2. Wprowadź poprawki w aktywnym polu tekstowym obok tej opcji.
 3. Sprawdź cały tekst, w tym stację, termin i znak końcowy.
 
-**Przy włączonym Overwrite zarówno przycisk Send to servers, jak i przycisk schowka korzystają z tekstu w polu ręcznej edycji.** Spacje i inne białe znaki na początku i końcu tego tekstu są usuwane przy kopiowaniu oraz wysyłaniu. Aby skopiować ręcznie poprawioną depeszę, pozostaw **Overwrite** włączone i kliknij ikonę schowka.
+**Przy włączonym Overwrite przycisk ✅ wysyła i kopiuje tekst w polu ręcznej edycji.** Spacje i inne białe znaki na początku i końcu tego tekstu są usuwane przy kopiowaniu oraz wysyłaniu. Aby skopiować ręcznie poprawioną depeszę, pozostaw **Overwrite** włączone i kliknij **✅** (depesza zostanie również wysłana do skonfigurowanych serwerów).
 
 Podgląd nad polem ręcznej edycji nadal pokazuje wynik formularza. Zmiany w formularzu przy aktywnym **Overwrite** nie aktualizują ręcznie edytowanego tekstu. Wyłączenie tej opcji powoduje ponowne zastąpienie zawartości pola wynikiem formularza.
 
@@ -183,7 +183,7 @@ W tym samym polu ścieżki wpisz docelową lokalizację i kliknij **Export confi
 
 1. Sprawdź depeszę oraz listę serwerów.
 2. Ustal, czy chcesz wysłać wynik formularza, czy tekst ręczny — zależy to od stanu **Overwrite**.
-3. Kliknij **Send to servers**.
+3. Kliknij **✅**.
 4. Poczekaj na wynik dla każdego serwera.
 
 Program wysyła tekst żądaniem HTTP POST, kolejno do wszystkich skonfigurowanych adresów. Limit czasu pojedynczego żądania wynosi 15 sekund, więc przy kilku niedostępnych serwerach oczekiwanie może być dłuższe. Wyniki są wyświetlane osobno dla każdego serwera; powodzenie jednej wysyłki nie oznacza powodzenia pozostałych.
@@ -200,7 +200,7 @@ Program wysyła tekst żądaniem HTTP POST, kolejno do wszystkich skonfigurowany
 | Prośba o dodanie adresu serwera | Uzupełnij konfigurację w **Settings → Servers**. |
 | `METAR is empty; nothing was sent.` | Uzupełnij ręcznie edytowany tekst lub wyłącz **Overwrite**. |
 
-Program nie ponawia wysyłki automatycznie. Kolejne kliknięcie **Send to servers** wysyła depeszę ponownie do wszystkich pozycji z niepustym adresem.
+Program nie ponawia wysyłki automatycznie. Kolejne kliknięcie **✅** wysyła depeszę ponownie do wszystkich pozycji z niepustym adresem.
 
 ## 7. Przypomnienia dźwiękowe
 
@@ -237,7 +237,7 @@ Usuń inne warstwy i zjawiska, jeśli pozostały z poprzedniej obserwacji. Wynik
 METAR EPBC 061200Z 28005KT 5000 DZ FEW012 15/05 Q1013=
 ```
 
-Aby wysłać ten wynik, wyłącz **Overwrite** i kliknij **Send to servers** po skonfigurowaniu odbiorców.
+Aby wysłać ten wynik, wyłącz **Overwrite** i kliknij **✅** po skonfigurowaniu odbiorców.
 
 ## 9. Ograniczenia obecnej wersji
 

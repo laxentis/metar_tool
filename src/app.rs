@@ -658,12 +658,25 @@ impl eframe::App for App {
 
             ui.separator();
             ui.horizontal(|ui| {
+                if let Ok(results) = self.server_results.lock() {
+                    for result in results.iter() {
+                        ui.label(result);
+                    }
+                }
+            });
+            ui.separator();
+            ui.horizontal(|ui| {
                 if ui
-                    .button(language.text("Send to servers", "Wyślij do serwerów"))
+                    .button("✅")
+                    .on_hover_text(language.text(
+                        "Send to servers and copy report",
+                        "Wyślij do serwerów i kopiuj depeszę",
+                    ))
                     .clicked()
                 {
                     let report =
                         selected_report(&self.metar, self.overwrite, &self.overwrite_metar);
+                    ui.ctx().copy_text(report.clone());
                     let servers: Vec<_> = self
                         .servers
                         .iter()
@@ -712,25 +725,6 @@ impl eframe::App for App {
                         });
                     }
                 }
-                if let Ok(results) = self.server_results.lock() {
-                    for result in results.iter() {
-                        ui.label(result);
-                    }
-                }
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                if ui
-                    .button("📋")
-                    .on_hover_text(language.text("Copy report", "Kopiuj depeszę"))
-                    .clicked()
-                {
-                    ui.ctx().copy_text(selected_report(
-                        &self.metar,
-                        self.overwrite,
-                        &self.overwrite_metar,
-                    ));
-                };
                 ui.add_space(10.0);
                 if !self.overwrite {
                     self.overwrite_metar = self.metar.to_string();

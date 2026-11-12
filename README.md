@@ -41,13 +41,13 @@ Choose **Settings → Language → Polski** to switch the interface to Polish. T
 
 Fill in the observation details in the main window. The generated METAR appears at the bottom; use the clipboard button beside it to copy the report. The **Overwrite** option enables editing the displayed text directly.
 
-When **Overwrite** is enabled, both the clipboard button and **Send to servers** use the manually edited report, with leading and trailing whitespace removed. When it is disabled, both use the report generated from the form. The preview above the overwrite field always shows the generated report.
+When **Overwrite** is enabled, the **✅** button sends and copies the manually edited report, with leading and trailing whitespace removed. When it is disabled, it uses the report generated from the form. The preview above the overwrite field always shows the generated report.
 
 Negative temperature and dew point values use the METAR `M` prefix instead of a minus sign, with at least two digits for the absolute value. For example, −5°C and −12°C are encoded as `M05/M12`; 3°C and −5°C are encoded as `03/M05`.
 
 For step-by-step instructions in Polish, see [Instrukcja obsługi](INSTRUKCJA_OBSLUGI_PL.md).
 
-Configure one or more HTTP(S) endpoints from **Settings → Servers**. Each endpoint can have its own optional API key, which is sent in that server's `X-API-Key` request header. Leave a server's key empty to omit the header for that endpoint. Use **Send to servers** to POST the generated report (or the edited overwrite report) as `text/plain` to every configured URL. The app displays each endpoint's response status.
+Configure one or more HTTP(S) endpoints from **Settings → Servers**. Each endpoint can have its own optional API key, which is sent in that server's `X-API-Key` request header. Leave a server's key empty to omit the header for that endpoint. Use **✅** to copy the report to the clipboard and POST the generated report (or the edited overwrite report) as `text/plain` to every configured URL. The app displays each endpoint's response status.
 
 Open **Sound notifications** to enable or disable hourly reminders, set their active hours, and play a test sound. Reminder playback requires a usable default audio output device.
 
