@@ -6,8 +6,8 @@ pub mod metar;
 mod reminder;
 mod server;
 
-use egui::WindowLevel;
 use crate::app::App;
+use egui::WindowLevel;
 
 fn main() -> eframe::Result {
     let native_options = eframe::NativeOptions {

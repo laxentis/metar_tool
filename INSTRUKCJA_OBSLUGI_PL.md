@@ -16,6 +16,7 @@ Tłumaczenie obejmuje menu, formularz, okna ustawień i komunikaty aplikacji. Ko
 | Clouds / Phenomenon | Chmury / Zjawiska |
 | Temperature / Dew Point | Temperatura / Punkt rosy |
 | Overwrite / ✅ | Nadpisz / Wyślij i kopiuj |
+| New METAR | Nowy METAR |
 | Load config / Export config | Wczytaj konfigurację / Eksportuj konfigurację |
 | Enabled / Active hours / Test sound | Włączone / Godziny aktywności / Test dźwięku |
 | None | Brak |
@@ -24,7 +25,7 @@ Tłumaczenie obejmuje menu, formularz, okna ustawień i komunikaty aplikacji. Ko
 
 METAR Tool jest aplikacją do ręcznego przygotowywania depesz METAR i SPECI. Na podstawie danych wpisanych w formularzu tworzy tekst depeszy, który można skopiować do schowka lub wysłać do skonfigurowanych serwerów. Program udostępnia również przypomnienia dźwiękowe o pełnych godzinach.
 
-Dane obserwacyjne wprowadza użytkownik. Program nie pobiera aktualnej pogody ani nie aktualizuje automatycznie dnia i czasu obserwacji. Przed każdą wysyłką sprawdź dane oraz gotowy tekst depeszy. Formularz nie zapewnia pełnej kontroli poprawności meteorologicznej.
+Dane obserwacyjne wprowadza użytkownik. Program nie pobiera aktualnej pogody ani nie synchronizuje terminu obserwacji z zegarem. Przycisk **New METAR** przesuwa godzinę obserwacji o jedną godzinę. Przed każdą wysyłką sprawdź dane oraz gotowy tekst depeszy. Formularz nie zapewnia pełnej kontroli poprawności meteorologicznej.
 
 ## 2. Uruchomienie i zamknięcie
 
@@ -201,6 +202,20 @@ Program wysyła tekst żądaniem HTTP POST, kolejno do wszystkich skonfigurowany
 | `METAR is empty; nothing was sent.` | Uzupełnij ręcznie edytowany tekst lub wyłącz **Overwrite**. |
 
 Program nie ponawia wysyłki automatycznie. Kolejne kliknięcie **✅** wysyła depeszę ponownie do wszystkich pozycji z niepustym adresem.
+
+### Blokada pól i kolejna depesza
+
+Po rozpoczęciu wysyłania niepustej depeszy do skonfigurowanych serwerów program blokuje wszystkie pola parametrów oraz opcję **Overwrite** i pole ręcznej edycji. Otwarte okna edycji chmur i zjawisk zostają zamknięte. Blokada obowiązuje niezależnie od późniejszego wyniku wysyłki. Brak adresów serwerów lub pusta depesza nie powodują blokady. Stan blokady jest zapamiętywany po zamknięciu programu.
+
+Aby przygotować następną depeszę:
+
+1. Kliknij **New METAR** (**Nowy METAR** w polskim interfejsie). Przycisk jest aktywny przy zablokowanym formularzu.
+2. Program odblokuje pola i zwiększy godzinę obserwacji o 1, zachowując minuty oraz dotychczasowe dane pogodowe.
+3. Przy przejściu z 23 na 00 zwiększy również dzień obserwacji; po dniu 31 ustawi dzień 1. Na końcu krótszego miesiąca popraw dzień ręcznie.
+4. Opcja **Overwrite** zostanie wyłączona, a tekst ręczny zastąpiony wynikiem formularza. W razie potrzeby ponownie włącz tę opcję i wprowadź poprawki.
+5. Zaktualizuj dane pogodowe i sprawdź termin przed wysłaniem.
+
+Jeśli serwer odrzucił depeszę i wymaga ona poprawek, również użyj **New METAR**, a następnie przywróć właściwy termin odrzuconej obserwacji przed edycją i ponowną wysyłką. Samo ponowne kliknięcie **✅** wysyła zablokowaną depeszę bez zmiany jej danych.
 
 ## 7. Przypomnienia dźwiękowe
 

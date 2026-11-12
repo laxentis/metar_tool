@@ -11,6 +11,7 @@ A small desktop application for composing METAR observation reports. It provides
 - Edit the station ICAO code, observation day and time, wind, visibility, cloud layers, present weather, temperature, dew point, and pressure.
 - Configure variable wind direction, gusts, cloud layers, and weather phenomena.
 - Preview the formatted report and copy it to the clipboard.
+- Lock report fields when sending, then use **New METAR** to advance the hour and unlock editing.
 - Set an optional hourly sound reminder with configurable active hours and a test sound.
 - Save and restore application settings through egui persistence.
 
@@ -49,6 +50,10 @@ For step-by-step instructions in Polish, see [Instrukcja obsługi](INSTRUKCJA_OB
 
 Configure one or more HTTP(S) endpoints from **Settings → Servers**. Each endpoint can have its own optional API key, which is sent in that server's `X-API-Key` request header. Leave a server's key empty to omit the header for that endpoint. Use **✅** to copy the report to the clipboard and POST the generated report (or the edited overwrite report) as `text/plain` to every configured URL. The app displays each endpoint's response status.
 
+Once a nonempty report is dispatched to configured servers, all report parameter fields and **Overwrite** editing are locked, and open cloud and phenomenon editors close. The lock starts when sending begins, regardless of the eventual server responses. An empty report or missing server URLs does not lock the form. You can still click **✅** to resend the locked report.
+
+Click **New METAR** (**Nowy METAR** in Polish), available while the form is locked, to unlock editing and advance the observation hour by one. Minutes and weather values are retained. At midnight, the observation day advances, wrapping from 31 to 1; check the day manually at the end of shorter months. **Overwrite** is switched off and its text is regenerated from the form, so manual edits must be reapplied if needed. The locked state is saved when the application closes.
+
 Open **Sound notifications** to enable or disable hourly reminders, set their active hours, and play a test sound. Reminder playback requires a usable default audio output device.
 
 ### Loading and exporting server configurations
@@ -72,7 +77,12 @@ To export the current server list, enter a destination file path in **Settings �
 
 ## Project layout
 
-- `src/app.rs` — desktop interface and persisted application state.
+- `Cargo.toml` — package metadata and Rust dependencies.
+- `src/main.rs` — application entry point and native window setup.
+- `src/app.rs` — desktop interface, report editing and locking, server configuration import/export, and persisted application state.
+- `src/i18n.rs` — English and Polish interface text selection and localized formatting.
 - `src/metar.rs` — METAR report model and token formatting.
+- `src/server.rs` — HTTP report delivery and server response formatting.
 - `src/reminder.rs` — hourly reminder and sound playback.
 - `assets/bell.wav` — sound embedded in the application binary.
+- `INSTRUKCJA_OBSLUGI_PL.md` — detailed user instructions in Polish.

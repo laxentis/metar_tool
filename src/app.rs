@@ -127,6 +127,7 @@ pub struct App {
     wind_max_speed: i32,
     visibility: f32,
     metar: ObservationMessage,
+    report_locked: bool,
     overwrite: bool,
     overwrite_metar: String,
     reminder_config: ReminderConfig,
@@ -171,6 +172,7 @@ impl Default for App {
             server_results: Arc::new(Mutex::new(Vec::new())),
             cloud_editor: None,
             phenomenon_editor: None,
+            report_locked: false,
             overwrite: false,
             overwrite_metar: String::new(),
         }
@@ -240,420 +242,435 @@ impl eframe::App for App {
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.heading("METAR Tool");
 
-            egui::ComboBox::from_id_salt("message_type")
-                .selected_text(self.metar.message_type.to_string())
-                .show_ui(ui, |ui| {
-                    for message_type in [
-                        MessageType::Metar,
-                        MessageType::MetarCor,
-                        MessageType::Speci,
-                        MessageType::SpeciCor,
-                    ] {
-                        let label = message_type.to_string();
-                        ui.selectable_value(&mut self.metar.message_type, message_type, label);
-                    }
+            ui.add_enabled_ui(!self.report_locked, |ui| {
+                egui::ComboBox::from_id_salt("message_type")
+                    .selected_text(self.metar.message_type.to_string())
+                    .show_ui(ui, |ui| {
+                        for message_type in [
+                            MessageType::Metar,
+                            MessageType::MetarCor,
+                            MessageType::Speci,
+                            MessageType::SpeciCor,
+                        ] {
+                            let label = message_type.to_string();
+                            ui.selectable_value(&mut self.metar.message_type, message_type, label);
+                        }
+                    });
+
+                ui.horizontal(|ui| {
+                    ui.label("ICAO: ");
+                    ui.text_edit_singleline(&mut self.metar.location);
+                });
+                ui.horizontal(|ui| {
+                    ui.label(language.text("Day:", "Dzień:"));
+                    ui.add(egui::DragValue::new(&mut self.metar.observation_day).range(1..=31));
+                });
+                ui.horizontal(|ui| {
+                    ui.label(language.text("Time:", "Czas UTC:"));
+                    ui.add(egui::DragValue::new(&mut self.hour).range(0..=23));
+                    ui.label(":");
+                    ui.add(egui::DragValue::new(&mut self.minute).range(0..=59));
                 });
 
-            ui.horizontal(|ui| {
-                ui.label("ICAO: ");
-                ui.text_edit_singleline(&mut self.metar.location);
-            });
-            ui.horizontal(|ui| {
-                ui.label(language.text("Day:", "Dzień:"));
-                ui.add(egui::DragValue::new(&mut self.metar.observation_day).range(1..=31));
-            });
-            ui.horizontal(|ui| {
-                ui.label(language.text("Time:", "Czas UTC:"));
-                ui.add(egui::DragValue::new(&mut self.hour).range(0..=23));
-                ui.label(":");
-                ui.add(egui::DragValue::new(&mut self.minute).range(0..=59));
-            });
+                self.metar.observation_time = self.hour * 100 + self.minute;
 
-            self.metar.observation_time = self.hour * 100 + self.minute;
+                ui.label(language.text("Wind:", "Wiatr:"));
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut self.wind_vrb, "VRB");
+                    ui.add_enabled(
+                        !self.wind_vrb,
+                        egui::DragValue::new(&mut self.wind_dir)
+                            .range(0..=350)
+                            .suffix("°"),
+                    );
+                    ui.checkbox(&mut self.wind_varying, "V");
+                    ui.add_enabled(
+                        self.wind_varying,
+                        egui::RangeSlider::new(&mut self.wind_left, &mut self.wind_right, 0..=350)
+                            .step_by(10.0)
+                            .text("°"),
+                    );
+                });
+                if self.wind_vrb {
+                    self.metar.wind.direction = None;
+                } else {
+                    self.metar.wind.direction = Some(self.wind_dir);
+                }
+                if self.wind_varying {
+                    self.metar.wind.variance =
+                        Some(crate::metar::WindVariance(self.wind_left, self.wind_right));
+                } else {
+                    self.metar.wind.variance = None;
+                }
+                ui.horizontal(|ui| {
+                    ui.label(language.text("Speed:", "Prędkość:"));
+                    ui.add(
+                        egui::DragValue::new(&mut self.metar.wind.speed)
+                            .suffix(" kts")
+                            .range(0..=100),
+                    );
+                    ui.checkbox(&mut self.wind_gusting, "G");
+                    ui.add_enabled(
+                        self.wind_gusting,
+                        egui::DragValue::new(&mut self.wind_max_speed)
+                            .suffix(" kts")
+                            .range(0..=100),
+                    );
+                });
 
-            ui.label(language.text("Wind:", "Wiatr:"));
-            ui.horizontal(|ui| {
-                ui.checkbox(&mut self.wind_vrb, "VRB");
-                ui.add_enabled(
-                    !self.wind_vrb,
-                    egui::DragValue::new(&mut self.wind_dir)
-                        .range(0..=350)
-                        .suffix("°"),
-                );
-                ui.checkbox(&mut self.wind_varying, "V");
-                ui.add_enabled(
-                    self.wind_varying,
-                    egui::RangeSlider::new(&mut self.wind_left, &mut self.wind_right, 0..=350)
-                        .step_by(10.0)
-                        .text("°"),
-                );
-            });
-            if self.wind_vrb {
-                self.metar.wind.direction = None;
-            } else {
-                self.metar.wind.direction = Some(self.wind_dir);
-            }
-            if self.wind_varying {
-                self.metar.wind.variance =
-                    Some(crate::metar::WindVariance(self.wind_left, self.wind_right));
-            } else {
-                self.metar.wind.variance = None;
-            }
-            ui.horizontal(|ui| {
-                ui.label(language.text("Speed:", "Prędkość:"));
-                ui.add(
-                    egui::DragValue::new(&mut self.metar.wind.speed)
-                        .suffix(" kts")
-                        .range(0..=100),
-                );
-                ui.checkbox(&mut self.wind_gusting, "G");
-                ui.add_enabled(
-                    self.wind_gusting,
-                    egui::DragValue::new(&mut self.wind_max_speed)
-                        .suffix(" kts")
-                        .range(0..=100),
-                );
-            });
+                if self.wind_gusting {
+                    self.metar.wind.gust_speed = Some(self.wind_max_speed);
+                } else {
+                    self.metar.wind.gust_speed = None;
+                }
 
-            if self.wind_gusting {
-                self.metar.wind.gust_speed = Some(self.wind_max_speed);
-            } else {
-                self.metar.wind.gust_speed = None;
-            }
+                ui.horizontal(|ui| {
+                    ui.label(language.text("Visibility:", "Widzialność:"));
+                    ui.add(
+                        egui::Slider::new(
+                            &mut self
+                                .metar
+                                .visibility_phenomena_clouds_group
+                                .visibility
+                                .visibility,
+                            0..=10000,
+                        )
+                        .text("m"),
+                    );
+                });
 
-            ui.horizontal(|ui| {
-                ui.label(language.text("Visibility:", "Widzialność:"));
-                ui.add(
-                    egui::Slider::new(
-                        &mut self
-                            .metar
-                            .visibility_phenomena_clouds_group
-                            .visibility
-                            .visibility,
-                        0..=10000,
-                    )
-                    .text("m"),
-                );
-            });
-
-            ui.horizontal(|ui| {
-                ui.label(language.text("Clouds:", "Chmury:"));
-                let clouds = &mut self.metar.visibility_phenomena_clouds_group.cloud_layers;
-                if let Some(clouds) = clouds {
-                    for (index, cloud) in clouds.iter().enumerate() {
-                        ui.label(cloud.to_string());
-                        if ui
-                            .small_button("📝")
-                            .on_hover_text(language.text("Edit", "Edytuj"))
-                            .clicked()
-                        {
-                            self.cloud_editor = Some(index);
-                        }
-                        if ui
-                            .small_button("🗑️")
-                            .on_hover_text(language.text("Remove", "Usuń"))
-                            .clicked()
-                        {
-                            clouds.remove(index);
-                            break;
+                ui.horizontal(|ui| {
+                    ui.label(language.text("Clouds:", "Chmury:"));
+                    let clouds = &mut self.metar.visibility_phenomena_clouds_group.cloud_layers;
+                    if let Some(clouds) = clouds {
+                        for (index, cloud) in clouds.iter().enumerate() {
+                            ui.label(cloud.to_string());
+                            if ui
+                                .small_button("📝")
+                                .on_hover_text(language.text("Edit", "Edytuj"))
+                                .clicked()
+                            {
+                                self.cloud_editor = Some(index);
+                            }
+                            if ui
+                                .small_button("🗑️")
+                                .on_hover_text(language.text("Remove", "Usuń"))
+                                .clicked()
+                            {
+                                clouds.remove(index);
+                                break;
+                            }
                         }
                     }
-                }
-                if ui
-                    .button("➕")
-                    .on_hover_text(language.text("Add", "Dodaj"))
-                    .clicked()
-                {
-                    let clouds = self
-                        .metar
-                        .visibility_phenomena_clouds_group
-                        .cloud_layers
-                        .get_or_insert_with(Vec::new);
-                    clouds.push(crate::metar::CloudLayer {
-                        coverage: crate::metar::CloudCoverage::FEW,
-                        height: 0,
-                        cloud_type: None,
-                    });
-                    self.cloud_editor = Some(clouds.len() - 1);
-                }
-            });
-
-            ui.horizontal(|ui| {
-                ui.label(language.text("Phenomenon:", "Zjawiska:"));
-                let phenomena = &mut self.metar.visibility_phenomena_clouds_group.phenomena;
-                if let Some(phenomena) = phenomena {
-                    for (index, phenomenon) in phenomena.iter().enumerate() {
-                        ui.label(phenomenon.to_string());
-                        if ui
-                            .small_button("📝")
-                            .on_hover_text(language.text("Edit", "Edytuj"))
-                            .clicked()
-                        {
-                            self.phenomenon_editor = Some(index);
-                        }
-                        if ui
-                            .small_button("🗑️")
-                            .on_hover_text(language.text("Remove", "Usuń"))
-                            .clicked()
-                        {
-                            phenomena.remove(index);
-                            break;
-                        }
-                    }
-                }
-                if ui
-                    .button("➕")
-                    .on_hover_text(language.text("Add", "Dodaj"))
-                    .clicked()
-                {
-                    let items = self
-                        .metar
-                        .visibility_phenomena_clouds_group
-                        .phenomena
-                        .get_or_insert_with(Vec::new);
-                    items.push(crate::metar::Phenomenon {
-                        intensity: None,
-                        modifiers: None,
-                        code: crate::metar::PhenomenonCode::RA,
-                    });
-                    self.phenomenon_editor = Some(items.len() - 1);
-                }
-            });
-
-            if let Some(index) = self.cloud_editor {
-                let mut open = true;
-                egui::Window::new(language.text("Edit cloud layer", "Edycja warstwy chmur"))
-                    .id(egui::Id::unique("cloud_editor"))
-                    .open(&mut open)
-                    .show(ui.ctx(), |ui| {
-                        if let Some(cloud) = self
+                    if ui
+                        .button("➕")
+                        .on_hover_text(language.text("Add", "Dodaj"))
+                        .clicked()
+                    {
+                        let clouds = self
                             .metar
                             .visibility_phenomena_clouds_group
                             .cloud_layers
-                            .as_mut()
-                            .and_then(|v| v.get_mut(index))
-                        {
-                            ui.horizontal(|ui| {
-                                ui.label(language.text("Coverage", "Zachmurzenie"));
-                                egui::ComboBox::from_id_salt("cloud_coverage")
-                                    .selected_text(cloud.coverage.to_string())
-                                    .show_ui(ui, |ui| {
-                                        for (i, label) in
-                                            ["FEW", "SCT", "BKN", "OVC"].iter().enumerate()
-                                        {
-                                            if ui
-                                                .selectable_label(
-                                                    cloud.coverage.to_string() == *label,
-                                                    *label,
-                                                )
-                                                .clicked()
-                                            {
-                                                cloud.coverage = [
-                                                    crate::metar::CloudCoverage::FEW,
-                                                    crate::metar::CloudCoverage::SCT,
-                                                    crate::metar::CloudCoverage::BKN,
-                                                    crate::metar::CloudCoverage::OVC,
-                                                ]
-                                                .into_iter()
-                                                .nth(i)
-                                                .unwrap();
-                                            }
-                                        }
-                                    });
-                            });
-                            ui.horizontal(|ui| {
-                                ui.label(language.text("Height: ", "Wysokość: "));
-                                ui.add(
-                                    egui::DragValue::new(&mut cloud.height)
-                                        .range(0..=60000)
-                                        .speed(100)
-                                        .suffix(" ft"),
-                                );
-                            });
+                            .get_or_insert_with(Vec::new);
+                        clouds.push(crate::metar::CloudLayer {
+                            coverage: crate::metar::CloudCoverage::FEW,
+                            height: 0,
+                            cloud_type: None,
+                        });
+                        self.cloud_editor = Some(clouds.len() - 1);
+                    }
+                });
 
-                            let mut kind = cloud
-                                .cloud_type
-                                .as_ref()
-                                .map(ToString::to_string)
-                                .unwrap_or_else(|| "None".into());
-                            egui::ComboBox::from_id_salt("cloud_type")
-                                .selected_text(
-                                    language
-                                        .text(&kind, if kind == "None" { "Brak" } else { &kind }),
-                                )
-                                .show_ui(ui, |ui| {
-                                    for value in ["None", "CB", "TCU"] {
-                                        ui.selectable_value(
-                                            &mut kind,
-                                            value.to_string(),
-                                            language.text(
-                                                value,
-                                                if value == "None" { "Brak" } else { value },
-                                            ),
-                                        );
-                                    }
-                                });
-                            cloud.cloud_type = match kind.as_str() {
-                                "CB" => Some(crate::metar::CloudType::CB),
-                                "TCU" => Some(crate::metar::CloudType::TCU),
-                                _ => None,
-                            };
+                ui.horizontal(|ui| {
+                    ui.label(language.text("Phenomenon:", "Zjawiska:"));
+                    let phenomena = &mut self.metar.visibility_phenomena_clouds_group.phenomena;
+                    if let Some(phenomena) = phenomena {
+                        for (index, phenomenon) in phenomena.iter().enumerate() {
+                            ui.label(phenomenon.to_string());
+                            if ui
+                                .small_button("📝")
+                                .on_hover_text(language.text("Edit", "Edytuj"))
+                                .clicked()
+                            {
+                                self.phenomenon_editor = Some(index);
+                            }
+                            if ui
+                                .small_button("🗑️")
+                                .on_hover_text(language.text("Remove", "Usuń"))
+                                .clicked()
+                            {
+                                phenomena.remove(index);
+                                break;
+                            }
                         }
-                    });
-                if !open {
-                    self.cloud_editor = None;
-                }
-            }
-            if let Some(index) = self.phenomenon_editor {
-                let mut open = true;
-                egui::Window::new(language.text("Edit phenomenon", "Edycja zjawiska"))
-                    .id(egui::Id::unique("phenomenon_editor"))
-                    .open(&mut open)
-                    .show(ui.ctx(), |ui| {
-                        if let Some(item) = self
+                    }
+                    if ui
+                        .button("➕")
+                        .on_hover_text(language.text("Add", "Dodaj"))
+                        .clicked()
+                    {
+                        let items = self
                             .metar
                             .visibility_phenomena_clouds_group
                             .phenomena
-                            .as_mut()
-                            .and_then(|v| v.get_mut(index))
-                        {
-                            let mut intensity = item
-                                .intensity
-                                .as_ref()
-                                .map(ToString::to_string)
-                                .unwrap_or_else(|| "None".into());
-                            egui::ComboBox::from_id_salt("phenomenon_intensity")
-                                .selected_text(language.text(
-                                    &intensity,
-                                    if intensity == "None" {
-                                        "Brak"
-                                    } else {
-                                        &intensity
-                                    },
-                                ))
-                                .show_ui(ui, |ui| {
-                                    for value in ["None", "+", "-"] {
-                                        ui.selectable_value(
-                                            &mut intensity,
-                                            value.to_string(),
-                                            language.text(
-                                                value,
-                                                if value == "None" { "Brak" } else { value },
-                                            ),
-                                        );
-                                    }
-                                });
-                            item.intensity = match intensity.as_str() {
-                                "+" => Some(crate::metar::PhenomenonIntensity::Plus),
-                                "-" => Some(crate::metar::PhenomenonIntensity::Minus),
-                                _ => None,
-                            };
-                            let codes = [
-                                "DZ", "RA", "SN", "SG", "PL", "GR", "GS", "UP", "BR", "FG", "FU",
-                                "VA", "DU", "SA", "HZ", "PO", "SQ", "FC", "SS", "DS", "TS", "NSW",
-                            ];
-                            let mut code = item.code.to_string();
-                            egui::ComboBox::from_id_salt("phenomenon_code")
-                                .selected_text(&code)
-                                .show_ui(ui, |ui| {
-                                    for value in codes {
-                                        ui.selectable_value(&mut code, value.to_string(), value);
-                                    }
-                                });
-                            item.code = match code.as_str() {
-                                "DZ" => crate::metar::PhenomenonCode::DZ,
-                                "RA" => crate::metar::PhenomenonCode::RA,
-                                "SN" => crate::metar::PhenomenonCode::SN,
-                                "SG" => crate::metar::PhenomenonCode::SG,
-                                "PL" => crate::metar::PhenomenonCode::PL,
-                                "GR" => crate::metar::PhenomenonCode::GR,
-                                "GS" => crate::metar::PhenomenonCode::GS,
-                                "UP" => crate::metar::PhenomenonCode::UP,
-                                "BR" => crate::metar::PhenomenonCode::BR,
-                                "FG" => crate::metar::PhenomenonCode::FG,
-                                "FU" => crate::metar::PhenomenonCode::FU,
-                                "VA" => crate::metar::PhenomenonCode::VA,
-                                "DU" => crate::metar::PhenomenonCode::DU,
-                                "SA" => crate::metar::PhenomenonCode::SA,
-                                "HZ" => crate::metar::PhenomenonCode::HZ,
-                                "PO" => crate::metar::PhenomenonCode::PO,
-                                "SQ" => crate::metar::PhenomenonCode::SQ,
-                                "FC" => crate::metar::PhenomenonCode::FC,
-                                "SS" => crate::metar::PhenomenonCode::SS,
-                                "DS" => crate::metar::PhenomenonCode::DS,
-                                "TS" => crate::metar::PhenomenonCode::TS,
-                                _ => crate::metar::PhenomenonCode::NSW,
-                            };
-                            let mut modifier = item
-                                .modifiers
-                                .as_ref()
-                                .and_then(|m| m.first())
-                                .map(ToString::to_string)
-                                .unwrap_or_else(|| "None".into());
-                            egui::ComboBox::from_id_salt("phenomenon_modifier")
-                                .selected_text(language.text(
-                                    &modifier,
-                                    if modifier == "None" {
-                                        "Brak"
-                                    } else {
-                                        &modifier
-                                    },
-                                ))
-                                .show_ui(ui, |ui| {
-                                    for value in [
-                                        "None", "MI", "BC", "PR", "DR", "BL", "SH", "TS", "FZ",
-                                        "VC",
-                                    ] {
-                                        ui.selectable_value(
-                                            &mut modifier,
-                                            value.to_string(),
-                                            language.text(
-                                                value,
-                                                if value == "None" { "Brak" } else { value },
-                                            ),
-                                        );
-                                    }
-                                });
-                            item.modifiers = match modifier.as_str() {
-                                "MI" => Some(vec![crate::metar::PhenomenonModifier::MI]),
-                                "BC" => Some(vec![crate::metar::PhenomenonModifier::BC]),
-                                "PR" => Some(vec![crate::metar::PhenomenonModifier::PR]),
-                                "DR" => Some(vec![crate::metar::PhenomenonModifier::DR]),
-                                "BL" => Some(vec![crate::metar::PhenomenonModifier::BL]),
-                                "SH" => Some(vec![crate::metar::PhenomenonModifier::SH]),
-                                "TS" => Some(vec![crate::metar::PhenomenonModifier::TS]),
-                                "FZ" => Some(vec![crate::metar::PhenomenonModifier::FZ]),
-                                "VC" => Some(vec![crate::metar::PhenomenonModifier::VC]),
-                                _ => None,
-                            };
-                        }
-                    });
-                if !open {
-                    self.phenomenon_editor = None;
-                }
-            }
+                            .get_or_insert_with(Vec::new);
+                        items.push(crate::metar::Phenomenon {
+                            intensity: None,
+                            modifiers: None,
+                            code: crate::metar::PhenomenonCode::RA,
+                        });
+                        self.phenomenon_editor = Some(items.len() - 1);
+                    }
+                });
 
-            ui.horizontal(|ui| {
-                ui.label(language.text("Temperature:", "Temperatura:"));
-                ui.add(
-                    egui::DragValue::new(&mut self.metar.temperature)
-                        .suffix(" °C")
-                        .range(-50..=50),
-                );
-                ui.label(language.text("Dew Point:", "Punkt rosy:"));
-                ui.add(
-                    egui::DragValue::new(&mut self.metar.dew_point)
-                        .suffix(" °C")
-                        .range(-50..=50),
-                );
-            });
-            ui.horizontal(|ui| {
-                ui.label("QNH:");
-                ui.add(
-                    egui::DragValue::new(&mut self.metar.pressure.value)
-                        .suffix(" hPa")
-                        .range(800.0..=1200.0),
-                );
+                if let Some(index) = self.cloud_editor {
+                    let mut open = true;
+                    egui::Window::new(language.text("Edit cloud layer", "Edycja warstwy chmur"))
+                        .id(egui::Id::unique("cloud_editor"))
+                        .open(&mut open)
+                        .show(ui.ctx(), |ui| {
+                            if self.report_locked {
+                                ui.disable();
+                            }
+                            if let Some(cloud) = self
+                                .metar
+                                .visibility_phenomena_clouds_group
+                                .cloud_layers
+                                .as_mut()
+                                .and_then(|v| v.get_mut(index))
+                            {
+                                ui.horizontal(|ui| {
+                                    ui.label(language.text("Coverage", "Zachmurzenie"));
+                                    egui::ComboBox::from_id_salt("cloud_coverage")
+                                        .selected_text(cloud.coverage.to_string())
+                                        .show_ui(ui, |ui| {
+                                            for (i, label) in
+                                                ["FEW", "SCT", "BKN", "OVC"].iter().enumerate()
+                                            {
+                                                if ui
+                                                    .selectable_label(
+                                                        cloud.coverage.to_string() == *label,
+                                                        *label,
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    cloud.coverage = [
+                                                        crate::metar::CloudCoverage::FEW,
+                                                        crate::metar::CloudCoverage::SCT,
+                                                        crate::metar::CloudCoverage::BKN,
+                                                        crate::metar::CloudCoverage::OVC,
+                                                    ]
+                                                    .into_iter()
+                                                    .nth(i)
+                                                    .unwrap();
+                                                }
+                                            }
+                                        });
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label(language.text("Height: ", "Wysokość: "));
+                                    ui.add(
+                                        egui::DragValue::new(&mut cloud.height)
+                                            .range(0..=60000)
+                                            .speed(100)
+                                            .suffix(" ft"),
+                                    );
+                                });
+
+                                let mut kind = cloud
+                                    .cloud_type
+                                    .as_ref()
+                                    .map(ToString::to_string)
+                                    .unwrap_or_else(|| "None".into());
+                                egui::ComboBox::from_id_salt("cloud_type")
+                                    .selected_text(
+                                        language.text(
+                                            &kind,
+                                            if kind == "None" { "Brak" } else { &kind },
+                                        ),
+                                    )
+                                    .show_ui(ui, |ui| {
+                                        for value in ["None", "CB", "TCU"] {
+                                            ui.selectable_value(
+                                                &mut kind,
+                                                value.to_string(),
+                                                language.text(
+                                                    value,
+                                                    if value == "None" { "Brak" } else { value },
+                                                ),
+                                            );
+                                        }
+                                    });
+                                cloud.cloud_type = match kind.as_str() {
+                                    "CB" => Some(crate::metar::CloudType::CB),
+                                    "TCU" => Some(crate::metar::CloudType::TCU),
+                                    _ => None,
+                                };
+                            }
+                        });
+                    if !open {
+                        self.cloud_editor = None;
+                    }
+                }
+                if let Some(index) = self.phenomenon_editor {
+                    let mut open = true;
+                    egui::Window::new(language.text("Edit phenomenon", "Edycja zjawiska"))
+                        .id(egui::Id::unique("phenomenon_editor"))
+                        .open(&mut open)
+                        .show(ui.ctx(), |ui| {
+                            if self.report_locked {
+                                ui.disable();
+                            }
+                            if let Some(item) = self
+                                .metar
+                                .visibility_phenomena_clouds_group
+                                .phenomena
+                                .as_mut()
+                                .and_then(|v| v.get_mut(index))
+                            {
+                                let mut intensity = item
+                                    .intensity
+                                    .as_ref()
+                                    .map(ToString::to_string)
+                                    .unwrap_or_else(|| "None".into());
+                                egui::ComboBox::from_id_salt("phenomenon_intensity")
+                                    .selected_text(language.text(
+                                        &intensity,
+                                        if intensity == "None" {
+                                            "Brak"
+                                        } else {
+                                            &intensity
+                                        },
+                                    ))
+                                    .show_ui(ui, |ui| {
+                                        for value in ["None", "+", "-"] {
+                                            ui.selectable_value(
+                                                &mut intensity,
+                                                value.to_string(),
+                                                language.text(
+                                                    value,
+                                                    if value == "None" { "Brak" } else { value },
+                                                ),
+                                            );
+                                        }
+                                    });
+                                item.intensity = match intensity.as_str() {
+                                    "+" => Some(crate::metar::PhenomenonIntensity::Plus),
+                                    "-" => Some(crate::metar::PhenomenonIntensity::Minus),
+                                    _ => None,
+                                };
+                                let codes = [
+                                    "DZ", "RA", "SN", "SG", "PL", "GR", "GS", "UP", "BR", "FG",
+                                    "FU", "VA", "DU", "SA", "HZ", "PO", "SQ", "FC", "SS", "DS",
+                                    "TS", "NSW",
+                                ];
+                                let mut code = item.code.to_string();
+                                egui::ComboBox::from_id_salt("phenomenon_code")
+                                    .selected_text(&code)
+                                    .show_ui(ui, |ui| {
+                                        for value in codes {
+                                            ui.selectable_value(
+                                                &mut code,
+                                                value.to_string(),
+                                                value,
+                                            );
+                                        }
+                                    });
+                                item.code = match code.as_str() {
+                                    "DZ" => crate::metar::PhenomenonCode::DZ,
+                                    "RA" => crate::metar::PhenomenonCode::RA,
+                                    "SN" => crate::metar::PhenomenonCode::SN,
+                                    "SG" => crate::metar::PhenomenonCode::SG,
+                                    "PL" => crate::metar::PhenomenonCode::PL,
+                                    "GR" => crate::metar::PhenomenonCode::GR,
+                                    "GS" => crate::metar::PhenomenonCode::GS,
+                                    "UP" => crate::metar::PhenomenonCode::UP,
+                                    "BR" => crate::metar::PhenomenonCode::BR,
+                                    "FG" => crate::metar::PhenomenonCode::FG,
+                                    "FU" => crate::metar::PhenomenonCode::FU,
+                                    "VA" => crate::metar::PhenomenonCode::VA,
+                                    "DU" => crate::metar::PhenomenonCode::DU,
+                                    "SA" => crate::metar::PhenomenonCode::SA,
+                                    "HZ" => crate::metar::PhenomenonCode::HZ,
+                                    "PO" => crate::metar::PhenomenonCode::PO,
+                                    "SQ" => crate::metar::PhenomenonCode::SQ,
+                                    "FC" => crate::metar::PhenomenonCode::FC,
+                                    "SS" => crate::metar::PhenomenonCode::SS,
+                                    "DS" => crate::metar::PhenomenonCode::DS,
+                                    "TS" => crate::metar::PhenomenonCode::TS,
+                                    _ => crate::metar::PhenomenonCode::NSW,
+                                };
+                                let mut modifier = item
+                                    .modifiers
+                                    .as_ref()
+                                    .and_then(|m| m.first())
+                                    .map(ToString::to_string)
+                                    .unwrap_or_else(|| "None".into());
+                                egui::ComboBox::from_id_salt("phenomenon_modifier")
+                                    .selected_text(language.text(
+                                        &modifier,
+                                        if modifier == "None" {
+                                            "Brak"
+                                        } else {
+                                            &modifier
+                                        },
+                                    ))
+                                    .show_ui(ui, |ui| {
+                                        for value in [
+                                            "None", "MI", "BC", "PR", "DR", "BL", "SH", "TS", "FZ",
+                                            "VC",
+                                        ] {
+                                            ui.selectable_value(
+                                                &mut modifier,
+                                                value.to_string(),
+                                                language.text(
+                                                    value,
+                                                    if value == "None" { "Brak" } else { value },
+                                                ),
+                                            );
+                                        }
+                                    });
+                                item.modifiers = match modifier.as_str() {
+                                    "MI" => Some(vec![crate::metar::PhenomenonModifier::MI]),
+                                    "BC" => Some(vec![crate::metar::PhenomenonModifier::BC]),
+                                    "PR" => Some(vec![crate::metar::PhenomenonModifier::PR]),
+                                    "DR" => Some(vec![crate::metar::PhenomenonModifier::DR]),
+                                    "BL" => Some(vec![crate::metar::PhenomenonModifier::BL]),
+                                    "SH" => Some(vec![crate::metar::PhenomenonModifier::SH]),
+                                    "TS" => Some(vec![crate::metar::PhenomenonModifier::TS]),
+                                    "FZ" => Some(vec![crate::metar::PhenomenonModifier::FZ]),
+                                    "VC" => Some(vec![crate::metar::PhenomenonModifier::VC]),
+                                    _ => None,
+                                };
+                            }
+                        });
+                    if !open {
+                        self.phenomenon_editor = None;
+                    }
+                }
+
+                ui.horizontal(|ui| {
+                    ui.label(language.text("Temperature:", "Temperatura:"));
+                    ui.add(
+                        egui::DragValue::new(&mut self.metar.temperature)
+                            .suffix(" °C")
+                            .range(-50..=50),
+                    );
+                    ui.label(language.text("Dew Point:", "Punkt rosy:"));
+                    ui.add(
+                        egui::DragValue::new(&mut self.metar.dew_point)
+                            .suffix(" °C")
+                            .range(-50..=50),
+                    );
+                });
+                ui.horizontal(|ui| {
+                    ui.label("QNH:");
+                    ui.add(
+                        egui::DragValue::new(&mut self.metar.pressure.value)
+                            .suffix(" hPa")
+                            .range(800.0..=1200.0),
+                    );
+                });
             });
 
             ui.separator();
@@ -715,6 +732,9 @@ impl eframe::App for App {
                         );
                     } else {
                         self.server_results.lock().unwrap().clear();
+                        self.report_locked = true;
+                        self.cloud_editor = None;
+                        self.phenomenon_editor = None;
                         let results = Arc::clone(&self.server_results);
                         let context = ui.ctx().clone();
                         send_to_servers(servers, report, language, move |result| {
@@ -725,20 +745,41 @@ impl eframe::App for App {
                         });
                     }
                 }
+                if ui
+                    .add_enabled(
+                        self.report_locked,
+                        egui::Button::new(language.text("New METAR", "Nowy METAR")),
+                    )
+                    .clicked()
+                {
+                    self.hour = (self.hour + 1) % 24;
+                    if self.hour == 0 {
+                        self.metar.observation_day = self.metar.observation_day % 31 + 1;
+                    }
+                    self.metar.observation_time = self.hour * 100 + self.minute;
+                    self.report_locked = false;
+                    self.overwrite = false;
+                    self.overwrite_metar = self.metar.to_string();
+                }
                 ui.add_space(10.0);
                 if !self.overwrite {
                     self.overwrite_metar = self.metar.to_string();
                 }
-                ui.vertical(|ui| {
+            });
+                          ui.add_enabled_ui(!self.report_locked, |ui| {
                     ui.label(self.metar.to_string());
                     ui.horizontal(|ui| {
                         ui.checkbox(&mut self.overwrite, language.text("Overwrite", "Nadpisz"));
-                        ui.add_enabled(
-                            self.overwrite,
-                            egui::TextEdit::singleline(&mut self.overwrite_metar)
-                                .hint_text("METAR")
-                                .clip_text(false),
-                        );
+                        if self.overwrite {
+                            ui.add_enabled(
+                                self.overwrite,
+                                egui::TextEdit::singleline(&mut self.overwrite_metar)
+                                    .hint_text("METAR")
+                                    .clip_text(false),
+                            );
+                        } else {
+                            ui.add_space(20.0);
+                        }
                     });
                 });
             });
@@ -752,7 +793,7 @@ impl eframe::App for App {
                     );
                 }
             });
-        });
+
 
         egui::Window::new(language.text("Sound settings", "Ustawienia dźwięku"))
             .id(egui::Id::unique("sound_settings"))
